@@ -32,33 +32,29 @@ class ClientWrapperTest(unittest.TestCase):
 
     def test_invalid_URL_throws_error(self):
         selenium_driver = client_wrapper.NdtHtml5SeleniumDriver()
-        test_results = selenium_driver.perform_test(
-            url='invalid_url',
-            browser='firefox')
+        test_results = selenium_driver.perform_test(url='invalid_url',
+                                                    browser='firefox')
 
         # We have one error
         self.assertEqual(len(test_results.errors), 1)
 
         # And that error is about the test results URL not being well-formed
         self.assertEqual(test_results.errors[0].message,
-            u'Target URL invalid_url is not well-formed.')
+                         u'Target URL invalid_url is not well-formed.')
 
     def test_timeout_throws_error(self):
         selenium_driver = client_wrapper.NdtHtml5SeleniumDriver()
         test_results = selenium_driver.perform_test(
             url='http://ndt.iupui.mlab4.nuq1t.measurement-lab.org:7123/',
-            browser='firefox', timeout_time=1)
+            browser='firefox',
+            timeout_time=1)
 
         # We have one error
         self.assertEqual(len(test_results.errors), 1)
 
         # And that is a timout error
         self.assertEqual(test_results.errors[0].message,
-            'Test did not complete within timeout period.')
-
-
-
-
+                         'Test did not complete within timeout period.')
 
 
 if __name__ == '__main__':

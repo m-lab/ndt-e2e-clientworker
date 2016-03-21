@@ -12,14 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import foo
-import unittest
 from datetime import datetime
 import pytz
 from selenium import webdriver
-from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import WebDriverException, TimeoutException
 
@@ -31,12 +27,10 @@ class TestError(object):
         timestamp: Datetime of when the error was observed
         message: String message describing the error.
     '''
+
     def __init__(self, timestamp, message):
         self.timestamp = timestamp
         self.message = message
-
-
-
 
 
 class NdtResult(object):
@@ -59,8 +53,16 @@ class NdtResult(object):
             encountered during the tests (or an empty list if all
             tests were successful).
     '''
-    def __init__(self, start_time, end_time, c2s_start_time, s2c_start_time,
-        errors, latency=None, upload_speed=None, download_speed=None):
+
+    def __init__(self,
+                 start_time,
+                 end_time,
+                 c2s_start_time,
+                 s2c_start_time,
+                 errors,
+                 latency=None,
+                 upload_speed=None,
+                 download_speed=None):
         self.start_time = start_time
         self.end_time = end_time
         self.c2s_start_time = c2s_start_time
@@ -72,7 +74,6 @@ class NdtResult(object):
             self.upload_speed = upload_speed
         if download_speed:
             self.download_speed = download_speed
-
 
 
 class NdtHtml5SeleniumDriver(object):
@@ -108,19 +109,18 @@ class NdtHtml5SeleniumDriver(object):
         '''
         self.driver = self.set_test_browser(browser)
         result_values = {'start_time': None,
-                'end_time': None,
-                'c2s_start_time': None,
-                's2c_start_time': None,
-                'errors': []
-                }
-
+                         'end_time': None,
+                         'c2s_start_time': None,
+                         's2c_start_time': None,
+                         'errors': []}
 
         try:
             self.driver.get(url)
 
-        except WebDriverException, e:
+        except WebDriverException as e:
             if e.msg == u'Target URL invalid_url is not well-formed.':
-                result_values['errors'].append(TestError(datetime.now(pytz.utc), e.msg))
+                result_values['errors'].append(TestError(
+                    datetime.now(pytz.utc), e.msg))
                 self.driver.close()
                 return NdtResult(**result_values)
 
@@ -135,21 +135,24 @@ class NdtHtml5SeleniumDriver(object):
             # wait until 'Now Testing your upload speed' is displayed
             upload_speed_text = self.driver.find_elements_by_xpath(
                 "//*[contains(text(), 'your upload speed')]")[0]
-            element = WebDriverWait(self.driver, timeout=timeout_time).until(
-            EC.visibility_of(upload_speed_text))
+            WebDriverWait(
+                self.driver,
+                timeout=timeout_time).until(EC.visibility_of(upload_speed_text))
             result_values['c2s_start_time'] = datetime.now(pytz.utc)
 
             # wait until 'Now Testing your download speed' is displayed
             download_speed_text = self.driver.find_elements_by_xpath(
                 "//*[contains(text(), 'your download speed')]")[0]
-            element = WebDriverWait(self.driver, timeout=timeout_time).until(
-            EC.visibility_of(download_speed_text))
+            WebDriverWait(self.driver,
+                          timeout=timeout_time).until(EC.visibility_of(
+                              download_speed_text))
             result_values['s2c_start_time'] = datetime.now(pytz.utc)
 
             # wait until the results page appears
             results_text = self.driver.find_element_by_id('results')
-            WebDriverWait(self.driver, timeout=timeout_time).until(
-                EC.visibility_of(results_text))
+            WebDriverWait(
+                self.driver,
+                timeout=timeout_time).until(EC.visibility_of(results_text))
             result_values['end_time'] = datetime.now(pytz.utc)
 
             result_values['upload_speed'] = self.driver.find_element_by_id(
@@ -159,19 +162,18 @@ class NdtHtml5SeleniumDriver(object):
 
             result_values['latency'] = self.driver.find_element_by_id(
                 'latency').text
-        except TimeoutException, e:
-            result_values['errors'].append(TestError(datetime.now(pytz.utc),
-                'Test did not complete within timeout period.'))
+        except TimeoutException as e:
+            result_values['errors'].append(TestError(
+                datetime.now(
+                    pytz.utc), 'Test did not complete within timeout period.'))
             self.driver.close()
             return NdtResult(**result_values)
 
         print(result_values)
 
-
         self.driver.close()
 
         return NdtResult(**result_values)
-
 
 
 def main():
@@ -181,6 +183,7 @@ def main():
         browser='firefox')
     print(test_results)
     print(test_results.latency)
+
 
 if __name__ == '__main__':
     main()
