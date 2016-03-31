@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from __future__ import absolute_import
+import os
+import platform
 import unittest
 import datetime
 import mock
@@ -20,6 +22,112 @@ import freezegun
 import selenium.webdriver.support.expected_conditions as selenium_expected_conditions
 from selenium.common import exceptions
 from client_wrapper import html5_driver
+
+
+class NdtHtml5SeleniumDriverMacTest(unittest.TestCase):
+
+    def setUp(self):
+        self.mock_os = mock.patch.object(html5_driver.platform,
+                                         'system',
+                                         autospec=True,
+                                         return_value='Darwin')
+        self.addCleanup(self.mock_os.stop)
+        self.mock_os.start()
+
+    def test_mac_OS_chrome_not_installed_raises_error(self):
+
+        self.assertEqual(platform.system(), 'Darwin')
+
+        # Chrome browser is not installed
+        mock_browser_installed = mock.patch.object(html5_driver.os.path,
+                                                   'isfile',
+                                                   autospec=True,
+                                                   return_value=False)
+        mock_browser_installed.start()
+
+        with self.assertRaises(IOError):
+            html5_driver.NdtHtml5SeleniumDriver(browser='chrome',
+                                                url='invalid_url',
+                                                timeout=1).perform_test()
+        mock_browser_installed.stop()
+
+    def test_mac_OS_chrome_can_download_files(self):
+
+        self.assertEqual(platform.system(), 'Darwin')
+
+        # Our Chrome browser has been installed
+        mock_chrome_installed = mock.patch.object(html5_driver.os.path,
+                                                  'isfile',
+                                                  autospec=True,
+                                                  return_value=True)
+        mock_chrome_installed.start()
+
+        mock_url_opener = mock.patch.object(html5_driver.urllib.URLopener,
+                                            'retrieve',
+                                            autospec=True)
+        mock_url_opener.start()
+
+        # We get an error because there is no browser to close
+        with self.assertRaises(AttributeError):
+            html5_driver.NdtHtml5SeleniumDriver(browser='chrome',
+                                                url='invalid_url',
+                                                timeout=1).perform_test()
+        mock_chrome_installed.stop()
+        mock_url_opener.stop()
+
+        base_dir = os.path.expanduser('~')
+        chromedriver_file = 'chromedriver_mac32.zip'
+        full_chromedriver_path = os.path.join(base_dir, chromedriver_file)
+
+        self.assertTrue(os.path.isfile(full_chromedriver_path))
+
+
+class NdtHtml5SeleniumDriverLinuxTest(unittest.TestCase):
+
+    def setUp(self):
+        self.mock_os = mock.patch.object(html5_driver.platform,
+                                         'system',
+                                         autospec=True,
+                                         return_value='Linux')
+        self.addCleanup(self.mock_os.stop)
+        self.mock_os.start()
+
+    def test_linux_chrome_is_not_installed_raises_error(self):
+
+        self.assertEqual(platform.system(), 'Linux')
+
+        # Chrome is not installed
+
+        mock_chrome_installed = mock.patch.object(html5_driver.os.path,
+                                                  'isfile',
+                                                  autospec=True,
+                                                  return_value=False)
+        mock_chrome_installed.start()
+
+        with self.assertRaises(IOError):
+            html5_driver.NdtHtml5SeleniumDriver(browser='chrome',
+                                                url='invalid_url',
+                                                timeout=1).perform_test()
+
+        mock_chrome_installed.stop()
+
+
+class NdtHtml5SeleniumDriverWindowsTest(unittest.TestCase):
+
+    def setUp(self):
+        self.mock_os = mock.patch.object(html5_driver.platform,
+                                         'system',
+                                         autospec=True,
+                                         return_value='Windows')
+        self.addCleanup(self.mock_os.stop)
+        self.mock_os.start()
+
+    def test_windows_raises_not_implemented_error(self):
+
+        with self.assertRaises(NotImplementedError):
+            html5_driver.NdtHtml5SeleniumDriver(browser='chrome',
+                                                url='invalid_url',
+                                                timeout=1).perform_test()
 
 
 class NdtHtml5SeleniumDriverGeneralTest(unittest.TestCase):
@@ -76,11 +184,6 @@ class NdtHtml5SeleniumDriverGeneralTest(unittest.TestCase):
 
     def test_unimplemented_browsers_raise_error(self):
 
-        with self.assertRaises(NotImplementedError):
-            html5_driver.NdtHtml5SeleniumDriver(
-                browser='chrome',
-                url='http://ndt.mock-server.com:7123',
-                timeout=1).perform_test()
         with self.assertRaises(NotImplementedError):
             html5_driver.NdtHtml5SeleniumDriver(
                 browser='edge',

@@ -30,3 +30,8 @@ SAFARI = 'safari'
 WINDOWS_10 = 'win10'
 UBUNTU_14 = 'ubuntu14.04'
 OSX_10_11 = 'osx10.11'
+
+EXPECTED_PATHS = {
+    'MAC': '/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome',
+    'LINUX': '/usr/bin/google-chrome',
+}
