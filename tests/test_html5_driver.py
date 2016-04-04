@@ -365,21 +365,18 @@ class NdtHtml5SeleniumDriverCustomClassTest(unittest.TestCase):
             def find_elements_by_xpath(self, xpath):
                 return [mock.Mock(autospec=True)]
 
-        mock_driver = mock.patch.object(html5_driver.webdriver,
-                                        'Firefox',
-                                        autospec=True,
-                                        return_value=NewDriver())
-        mock_driver.start()
+        with mock.patch.object(html5_driver.webdriver,
+                               'Firefox',
+                               autospec=True,
+                               return_value=NewDriver()):
 
-        # And a value error is raised because the c2s throughput
-        # unit was invalid.
-        with self.assertRaises(ValueError):
-            html5_driver.NdtHtml5SeleniumDriver(
-                browser='firefox',
-                url='http://ndt.mock-server.com:7123/',
-                timeout=1000).perform_test()
-
-        mock_driver.stop()
+            # And a value error is raised because the c2s throughput
+            # unit was invalid.
+            with self.assertRaises(ValueError):
+                html5_driver.NdtHtml5SeleniumDriver(
+                    browser='firefox',
+                    url='http://ndt.mock-server.com:7123/',
+                    timeout=1000).perform_test()
 
     def test_reading_in_result_page_timeout_throws_error(self):
 
