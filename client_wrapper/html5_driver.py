@@ -13,8 +13,11 @@
 # limitations under the License.
 
 from __future__ import division
+import os
+import platform
 import contextlib
 import datetime
+import urllib
 
 import pytz
 from selenium import webdriver
@@ -48,7 +51,6 @@ class NdtHtml5SeleniumDriver(object):
             A populated NdtResult object.
         """
         result = results.NdtResult(start_time=None, end_time=None, errors=[])
-
         with contextlib.closing(_create_browser(self._browser)) as driver:
 
             if not _load_url(driver, self._url, result):
@@ -78,9 +80,48 @@ def _create_browser(browser):
     """
     if browser == names.FIREFOX:
         return webdriver.Firefox()
-    if browser in [names.CHROME, names.EDGE, names.SAFARI]:
+    elif browser == names.CHROME:
+        chrome_webdriver = _download_chrome_drivers()
+        return chrome_webdriver
+    elif browser in [names.EDGE, names.SAFARI]:
         raise NotImplementedError
-    raise ValueError('Invalid browser specified: %s' % browser)
+    else:
+        raise ValueError('Invalid browser specified: %s' % browser)
+
+
+def _download_chrome_drivers():
+    """Downloads Chrome drivers for Selenium"""
+    # Mac OS X
+    if platform.system() == 'Darwin':
+        # Check that have Chrome installed
+        _test_chrome_browser_installed(names.EXPECTED_PATHS['MAC'])
+
+        url = 'http://chromedriver.storage.googleapis.com/2.21/chromedriver_mac32.zip'
+        driver_file = urllib.URLopener()
+        base_downloads_dir = os.path.join(os.path.expanduser('~'), 'Downloads/')
+
+        chromedriver_file = 'chromedriver_mac32.zip'
+        full_chromedriver_path = os.path.join(base_downloads_dir,
+                                              chromedriver_file)
+
+        driver_file.retrieve(url, full_chromedriver_path)
+    elif platform.system() == 'Linux':
+        _test_chrome_browser_installed(names.EXPECTED_PATHS['LINUX'])
+    else:
+        raise NotImplementedError
+
+
+def _test_chrome_browser_installed(expected_path):
+    """Tests that Chrome browser is installed at the expected path.
+
+    Args:
+        expected_path: The path on which we expect the chrome browser to be installed.
+    """
+
+    try:
+        assert os.path.isfile(expected_path)
+    except AssertionError:
+        raise IOError('Chrome browser is not installed')
 
 
 def _load_url(driver, url, result):
