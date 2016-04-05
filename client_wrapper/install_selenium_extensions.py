@@ -2,74 +2,80 @@ import argparse
 import os
 import platform
 import urllib
+import tempfile
 
 import names
 
 driver_urls = {
-    'chrome_os_x':
-    'http://chromedriver.storage.googleapis.com/2.21/chromedriver_mac32.zip',
-    'chrome_ubuntu':
-    'http://chromedriver.storage.googleapis.com/2.21/chromedriver_linux64.zip',
-    'chrome_windows_10':
-    'http://chromedriver.storage.googleapis.com/2.21/chromedriver_win32.zip',
-    'edge_windows_10':
-    'https://www.microsoft.com/en-us/download/confirmation.aspx?id=48212',
-    'safari_os_x':
-    'http://selenium-release.storage.googleapis.com/2.48/SafariDriver.safariextz'
+    'chrome_os_x': {
+        'url':
+        'http://chromedriver.storage.googleapis.com/2.21/chromedriver_mac32.zip',
+        'file_name': 'chromedriver_mac32.zip'
+    },
+    'chrome_ubuntu': {
+        'url':
+        'http://chromedriver.storage.googleapis.com/2.21/chromedriver_linux64.zip',
+        'file_name': 'chromedriver_linux64.zip'
+    },
+    'chrome_windows_10': {
+        'url':
+        'http://chromedriver.storage.googleapis.com/2.21/chromedriver_win32.zip',
+        'file_name': 'chromedriver_win32.zip'
+    },
+    'edge_windows_10': {
+        'url':
+        'https://download.microsoft.com/download/8/D/0/8D0D08CF-790D-4586-B726-C6469A9ED49C/MicrosoftWebDriver.msi',
+        'file_name': 'edge_windows_10.zip'
+    },
+    'safari_os_x': {
+        'url':
+        'http://selenium-release.storage.googleapis.com/2.48/SafariDriver.safariextz',
+        'file_name': 'SafariDriver.safariextz',
+    }
 }
 
 
-def _get_full_path_downloaded_file(driver_name):
-    """Gets full path of a file downloaded to a Downloads folder.
-
-    Args:
-        driver_name: A string representing the name of the file.
-    """
-    base_downloads_dir = os.path.join(os.path.expanduser('~'), 'Downloads/')
-    return os.path.join(base_downloads_dir, driver_name)
-
-
 def _download_chrome_drivers():
-    """Downloads Chrome drivers for Selenium"""
+    """Downloads Chrome drivers for Selenium."""
     # Mac OS X
     if platform.system() == 'Darwin':
-        url = driver_urls['chrome_os_x']
-        chromedriver_file = 'chromedriver_mac32.zip'
-        full_chromedriver_path = _get_full_path_downloaded_file(
-            chromedriver_file)
-        urllib.URLopener().retrieve(url, full_chromedriver_path)
+        remote_file = driver_urls['chrome_os_x']
+        _download_temp_file(remote_file['url'], remote_file['file_name'])
 
     elif platform.system() == 'Linux':
-        url = driver_urls['chrome_ubuntu']
-        chromedriver_file = 'chromedriver_linux64.zip'
-        full_chromedriver_path = _get_full_path_downloaded_file(
-            chromedriver_file)
-        urllib.URLopener().retrieve(url, full_chromedriver_path)
+        remote_file = driver_urls['chrome_ubuntu']
+        _download_temp_file(remote_file['url'], remote_file['file_name'])
 
     elif platform.system() == 'Windows':
-        url = driver_urls['chrome_windows_10']
-        chromedriver_file = 'chromedriver_win32.zip'
-        full_chromedriver_path = _get_full_path_downloaded_file(
-            chromedriver_file)
-        urllib.URLopener().retrieve(url, full_chromedriver_path)
+        remote_file = driver_urls['chrome_windows_10']
+        _download_temp_file(remote_file['url'], remote_file['file_name'])
     else:
         raise ValueError('Unsupported OS specified: %s' % (platform.system()))
 
 
+def _download_temp_file(url, file_name):
+    """Downloads file into temp directory.
+
+    Args:
+        url: A string representing the URL the file is to be downloaded from.
+        file_name: A string representing the name of the file to be downloaded.
+    """
+    temp_dir = tempfile.mkdtemp()
+    download_path = os.path.join(temp_dir, file_name)
+    print('File downloading to %s' % download_path)
+    urllib.URLopener().retrieve(url, download_path)
+
+
 def _download_edge_drivers():
-    """Downloads Edge drivers for Selenium"""
-    url = driver_urls['edge_windows_10']
-    edgedriver_file = 'MicrosoftWebDriver.msi'
-    full_edgedriver_path = _get_full_path_downloaded_file(edgedriver_file)
-    urllib.URLopener().retrieve(url, full_edgedriver_path)
+    """Downloads Edge drivers for Selenium."""
+    remote_file = driver_urls['edge_windows_10']
+    _download_temp_file(remote_file['url'], remote_file['file_name'])
 
 
 def _download_safari_drivers():
-    """Downloads Safari drivers for Selenium"""
-    url = driver_urls['safari_os_x']
-    safaridriver_file = 'SafariDriver.safariextz'
-    full_safaridriver_path = _get_full_path_downloaded_file(safaridriver_file)
-    urllib.URLopener().retrieve(url, full_safaridriver_path)
+    """Downloads Safari drivers for Selenium."""
+    remote_file = driver_urls['safari_os_x']
+    _download_temp_file(remote_file['url'], remote_file['file_name'])
 
 
 def main(args):
