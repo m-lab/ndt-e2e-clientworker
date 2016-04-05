@@ -25,7 +25,7 @@ driver_urls = {
     'edge_windows_10': {
         'url':
         'https://download.microsoft.com/download/8/D/0/8D0D08CF-790D-4586-B726-C6469A9ED49C/MicrosoftWebDriver.msi',
-        'file_name': 'edge_windows_10.zip'
+        'file_name': 'MicrosoftWebDriver.msi'
     },
     'safari_os_x': {
         'url':
@@ -40,17 +40,13 @@ def _download_chrome_drivers():
     # Mac OS X
     if platform.system() == 'Darwin':
         remote_file = driver_urls['chrome_os_x']
-        _download_temp_file(remote_file['url'], remote_file['file_name'])
-
     elif platform.system() == 'Linux':
         remote_file = driver_urls['chrome_ubuntu']
-        _download_temp_file(remote_file['url'], remote_file['file_name'])
-
     elif platform.system() == 'Windows':
         remote_file = driver_urls['chrome_windows_10']
-        _download_temp_file(remote_file['url'], remote_file['file_name'])
     else:
         raise ValueError('Unsupported OS specified: %s' % (platform.system()))
+    _download_temp_file(remote_file['url'], remote_file['file_name'])
 
 
 def _download_temp_file(url, file_name):
