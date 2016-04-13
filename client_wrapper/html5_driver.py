@@ -19,11 +19,17 @@ import datetime
 import pytz
 from selenium import webdriver
 from selenium.webdriver.support import ui
-from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support import expected_conditions
 from selenium.common import exceptions
 
 import names
 import results
+
+# TODO(mtlynch): Define all error strings as public constants so we're not
+# duplicating strings between production code and unit test code.
+ERROR_C2S_NEVER_STARTED = 'Timed out waiting for c2s test to begin.'
+ERROR_S2C_NEVER_STARTED = 'Timed out waiting for c2s test to begin.'
+ERROR_S2C_NEVER_ENDED = 'Timed out waiting for c2s test to end.'
 
 
 class NdtHtml5SeleniumDriver(object):
@@ -49,23 +55,16 @@ class NdtHtml5SeleniumDriver(object):
         """
         result = results.NdtResult(start_time=None, end_time=None, errors=[])
         result.client = names.NDT_HTML5
+        result.start_time = datetime.datetime.now(pytz.utc)
 
         with contextlib.closing(_create_browser(self._browser)) as driver:
             result.browser = self._browser
             result.browser_version = driver.capabilities['version']
 
-            if not _load_url(driver, self._url, result):
-                return result
+            _complete_ui_flow(driver, self._url, self._timeout, result)
 
-            _click_start_button(driver, result)
-
-            if not _record_test_in_progress_values(result, driver,
-                                                   self._timeout):
-                return result
-
-            _populate_metric_values(result, driver)
-
-            return result
+        result.end_time = datetime.datetime.now(pytz.utc)
+        return result
 
 
 def _create_browser(browser):
@@ -108,95 +107,94 @@ def _load_url(driver, url, result):
     return True
 
 
-def _click_start_button(driver, result):
-    """Clicks start test button and records start time.
-
-    Clicks the start test button for an NDT test and records the start time in
-    an NdtResult instance.
+def _complete_ui_flow(driver, url, timeout, result):
+    """Performs the UI flow for the NDT HTML5 test and records results.
 
     Args:
         driver: An instance of a Selenium webdriver browser class.
-        result: An instance of an NdtResult class.
+        url: URL to load to start the UI flow.
+        timeout: Maximum time (in seconds) to wait for any element to appear in
+            the flow.
+        result: NdtResult instance to populate with results from proceeding
+            through the UI flow.
+    """
+    if not _load_url(driver, url, result):
+
+        return
+
+    _click_start_button(driver)
+    result.c2s_result = results.NdtSingleTestResult()
+    result.s2c_result = results.NdtSingleTestResult()
+
+    if _wait_for_c2s_test_to_start(driver, timeout):
+        result.c2s_result.start_time = datetime.datetime.now(pytz.utc)
+    else:
+        result.errors.append(results.TestError(ERROR_C2S_NEVER_STARTED))
+
+    if _wait_for_s2c_test_to_start(driver, timeout):
+        result.c2s_result.end_time = datetime.datetime.now(pytz.utc)
+        result.s2c_result.start_time = datetime.datetime.now(pytz.utc)
+    else:
+        result.errors.append(results.TestError(ERROR_S2C_NEVER_STARTED))
+
+    if _wait_for_results_page_to_appear(driver, timeout):
+        result.s2c_result.end_time = datetime.datetime.now(pytz.utc)
+    else:
+        result.errors.append(results.TestError(ERROR_S2C_NEVER_ENDED))
+
+    _populate_metric_values(result, driver)
+
+
+def _click_start_button(driver):
+    """Clicks the "Start Test" button in the web UI.
+
+    Args:
+        driver: An instance of a Selenium webdriver browser class.
     """
     driver.find_element_by_id('websocketButton').click()
 
     start_button = driver.find_elements_by_xpath(
         "//*[contains(text(), 'Start Test')]")[0]
     start_button.click()
-    result.start_time = datetime.datetime.now(pytz.utc)
 
 
-def _record_test_in_progress_values(result, driver, timeout):
-    """Records values that are measured while the NDT test is in progress.
+def _wait_for_c2s_test_to_start(driver, timeout):
+    # Wait until the 'Now Testing your upload speed' banner is displayed.
+    upload_speed_text = driver.find_elements_by_xpath(
+        "//*[contains(text(), 'your upload speed')]")[0]
+    return _wait_until_element_is_visible(driver, upload_speed_text, timeout)
 
-    Measures s2c_start_time, c2s_end_time, and end_time, which are stored in
-    an instance of NdtResult. These times are measured while the NDT test is
-    in progress.
+
+def _wait_for_s2c_test_to_start(driver, timeout):
+    # Wait until the 'Now Testing your download speed' banner is displayed.
+    download_speed_text = driver.find_elements_by_xpath(
+        "//*[contains(text(), 'your download speed')]")[0]
+    return _wait_until_element_is_visible(driver, download_speed_text, timeout)
+
+
+def _wait_for_results_page_to_appear(driver, timeout):
+    results_text = driver.find_element_by_id('results')
+    return _wait_until_element_is_visible(driver, results_text, timeout)
+
+
+def _wait_until_element_is_visible(driver, element, timeout):
+    """Waits until a DOM element is visible within a given timeout.
 
     Args:
-        result: An instance of NdtResult.
         driver: An instance of a Selenium webdriver browser class.
-        timeout: The number of seconds that the driver will wait for
-            each element to become visible before timing out.
+        element: A selenium webdriver element.
+        timeout: The maximum time to wait (in seconds).
 
     Returns:
-        True if recording the measured values was successful, False if otherwise.
+        True if the element became visible within the timeout.
     """
     try:
-        # wait until 'Now Testing your upload speed' is displayed
-        upload_speed_text = driver.find_elements_by_xpath(
-            "//*[contains(text(), 'your upload speed')]")[0]
-        result.c2s_result = results.NdtSingleTestResult()
-        result.c2s_result.start_time = _record_time_when_element_displayed(
-            upload_speed_text,
+        ui.WebDriverWait(
             driver,
-            timeout=timeout)
-        result.c2s_result.end_time = datetime.datetime.now(pytz.utc)
-
-        # wait until 'Now Testing your download speed' is displayed
-        download_speed_text = driver.find_elements_by_xpath(
-            "//*[contains(text(), 'your download speed')]")[0]
-        result.s2c_result = results.NdtSingleTestResult()
-        result.s2c_result.start_time = _record_time_when_element_displayed(
-            download_speed_text,
-            driver,
-            timeout=timeout)
-
-        # wait until the results page appears
-        results_text = driver.find_element_by_id('results')
-        result.s2c_result.end_time = datetime.datetime.now(pytz.utc)
-        result.end_time = _record_time_when_element_displayed(results_text,
-                                                              driver,
-                                                              timeout=timeout)
+            timeout=timeout).until(expected_conditions.visibility_of(element))
     except exceptions.TimeoutException:
-        result.errors.append(results.TestError(
-            'Test did not complete within timeout period.'))
         return False
     return True
-
-
-def _record_time_when_element_displayed(element, driver, timeout):
-    """Return the time when the specified element is displayed.
-
-    The Selenium WebDriver checks whether the specified element is visible. If
-    it becomes visible before the request has timed out, the timestamp of the
-    time when the element becomes visible is returned.
-
-    Args:
-        element: A selenium webdriver element.
-        driver: An instance of a Selenium webdriver browser class.
-        timeout: The number of seconds that the driver will wait for
-            each element to become visible before timing out.
-
-    Returns:
-        A datetime object with a timezone information attribute.
-
-    Raises:
-        TimeoutException: If the element does not become visible before the
-            timeout time passes.
-    """
-    ui.WebDriverWait(driver, timeout=timeout).until(EC.visibility_of(element))
-    return datetime.datetime.now(pytz.utc)
 
 
 def _populate_metric_values(result, driver):
