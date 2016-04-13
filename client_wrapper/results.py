@@ -59,10 +59,13 @@ class NdtResult(object):
     """Represents the results of a complete NDT HTML5 client test.
 
     Attributes:
-        start_time: The datetime at which tests were initiated (i.e. the time
-            the driver pushed the 'Start Test' button).
-        end_time: The datetime at which the tests completed (i.e. the time the
-            results page loaded).
+        start_time: The datetime at which the NDT client was launched. This is
+            time at which the client wrapper begins running a particular client,
+            but is not necessarily the time at which the client itself initiated
+            a test.
+        end_time: The datetime at which the NDT client completed. This should be
+            equal to the end_time of the client's last test or the time of a
+            fatal error in the client.
         errors: A list of TestError objects representing any errors encountered
             during the tests (or an empty list if all tests were successful).
         c2s_result: The NdtSingleResult for the c2s (upload) test (or None if no

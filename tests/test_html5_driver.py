@@ -18,21 +18,18 @@ import unittest
 
 import mock
 import pytz
-import freezegun
-import selenium.webdriver.support.expected_conditions as selenium_expected_conditions
 from selenium.common import exceptions
-
 from client_wrapper import html5_driver
 
 
 class NdtHtml5SeleniumDriverTest(unittest.TestCase):
 
     def setUp(self):
-        self.mock_visibility = mock.patch.object(selenium_expected_conditions,
-                                                 'visibility_of',
-                                                 autospec=True)
-        self.addCleanup(self.mock_visibility.stop)
-        self.mock_visibility.start()
+        visibility_patcher = mock.patch.object(html5_driver.expected_conditions,
+                                               'visibility_of',
+                                               autospec=True)
+        self.addCleanup(visibility_patcher.stop)
+        visibility_patcher.start()
 
         self.mock_driver = mock.Mock()
         self.mock_driver.capabilities = {'version': 'mock_version'}
@@ -103,8 +100,8 @@ class NdtHtml5SeleniumDriverTest(unittest.TestCase):
         self.assertErrorMessagesEqual(
             ['Failed to load test UI.'], result.errors)
 
-    def test_test_in_progress_timeout_throws_error(self):
-        # Call to webdriverwait throws timeout exception
+    def test_test_in_progress_timeout_yields_timeout_errors(self):
+        """If each test times out, expect an error for each timeout."""
         with mock.patch.object(html5_driver.ui,
                                'WebDriverWait',
                                side_effect=exceptions.TimeoutException,
@@ -115,7 +112,24 @@ class NdtHtml5SeleniumDriverTest(unittest.TestCase):
                 timeout=1).perform_test()
 
         self.assertErrorMessagesEqual(
-            ['Test did not complete within timeout period.'], result.errors)
+            [html5_driver.ERROR_C2S_NEVER_STARTED,
+             html5_driver.ERROR_S2C_NEVER_STARTED,
+             html5_driver.ERROR_S2C_NEVER_ENDED], result.errors)
+
+    def test_c2s_start_timeout_yields_errors(self):
+        """If waiting for just c2s start times out, expect just one error."""
+        with mock.patch.object(html5_driver.ui,
+                               'WebDriverWait',
+                               autospec=True) as mock_wait:
+            mock_wait.side_effect = [exceptions.TimeoutException, mock.Mock(),
+                                     mock.Mock()]
+            result = html5_driver.NdtHtml5SeleniumDriver(
+                browser='firefox',
+                url='http://ndt.mock-server.com:7123/',
+                timeout=1).perform_test()
+
+        self.assertErrorMessagesEqual(
+            [html5_driver.ERROR_C2S_NEVER_STARTED], result.errors)
 
     def test_unrecognized_browser_raises_error(self):
         selenium_driver = html5_driver.NdtHtml5SeleniumDriver(
@@ -288,62 +302,52 @@ class NdtHtml5SeleniumDriverTest(unittest.TestCase):
         self.assertEqual(3.0, result.latency)
         self.assertErrorMessagesEqual([], result.errors)
 
-    @freezegun.freeze_time('2016-01-01', tz_offset=0)
-    def test_ndt_result_records_todays_times(self):
-        # When we patch datetime so it shows our current date as 2016-01-01
-        self.assertEqual(datetime.datetime.now(), datetime.datetime(2016, 1, 1))
-        result = html5_driver.NdtHtml5SeleniumDriver(
-            browser='firefox',
-            url='http://ndt.mock-server.com:7123/',
-            timeout=1000).perform_test()
-
-        # Then the readings for our test start and end times occur within
-        # today's date
-        self.assertEqual(result.start_time,
-                         datetime.datetime(2016,
-                                           1,
-                                           1,
-                                           tzinfo=pytz.utc))
-        self.assertEqual(result.end_time,
-                         datetime.datetime(2016,
-                                           1,
-                                           1,
-                                           tzinfo=pytz.utc))
-
     def test_ndt_result_increments_time_correctly(self):
-        # Create a list of times every minute starting at 2016-1-1 8:00:00 and
-        # ending at 2016-1-1 8:04:00. These will be the values that our mock
-        # datetime.now() function returns.
-        base_date = datetime.datetime(2016, 1, 1, 8, 0, 0, tzinfo=pytz.utc)
-        dates = [base_date + datetime.timedelta(0, 60) * x for x in range(6)]
+        # Create a list of mock times to be returned by datetime.now().
+        times = []
+        for i in range(10):
+            times.append(datetime.datetime(2016, 1, 1, 0, 0, i))
 
         with mock.patch.object(html5_driver.datetime,
                                'datetime',
                                autospec=True) as mocked_datetime:
-            mocked_datetime.now.side_effect = dates
+            # Patch datetime.now to return the next mock time on every call to
+            # now().
+            mocked_datetime.now.side_effect = times
+
+            # Modify the Firefox mock to increment the clock forward one call.
+            def mock_firefox():
+                datetime.datetime.now(pytz.utc)
+                return self.mock_driver
+
+            html5_driver.webdriver.Firefox.side_effect = mock_firefox
+
+            # Modify the visibility_of mock to increment the clock forward one
+            # call.
+            def mock_visibility_of(_):
+                datetime.datetime.now(pytz.utc)
+                return mock.Mock()
+
+            html5_driver.expected_conditions.visibility_of.side_effect = (
+                mock_visibility_of)
 
             result = html5_driver.NdtHtml5SeleniumDriver(
                 browser='firefox',
                 url='http://ndt.mock-server.com:7123/',
                 timeout=1).perform_test()
 
-        # And the sequence of returned values follows the expected timeline
-        # that the readings are taken in.
-
-        # yapf: disable
-        self.assertEqual(
-            result.start_time,
-            datetime.datetime(2016, 1, 1, 8, 0, 0, tzinfo=pytz.utc))
-        self.assertEqual(
-            result.c2s_result.start_time,
-            datetime.datetime(2016, 1, 1, 8, 1, 0, tzinfo=pytz.utc))
-        self.assertEqual(
-            result.s2c_result.start_time,
-            datetime.datetime(2016, 1, 1, 8, 3, 0, tzinfo=pytz.utc))
-        self.assertEqual(
-            result.end_time,
-            datetime.datetime(2016, 1, 1, 8, 5, 0, tzinfo=pytz.utc))
-        # yapf: enable
+        # Verify the recorded times matches the expected sequence.
+        self.assertEqual(times[0], result.start_time)
+        # times[1] is the call from mock_firefox
+        # times[2] is the check for visibility of c2s test start
+        self.assertEqual(times[3], result.c2s_result.start_time)
+        # times[4] is the check for visibility of s2c test start (start of s2c
+        #   marks the end of c2s)
+        self.assertEqual(times[5], result.c2s_result.end_time)
+        self.assertEqual(times[6], result.s2c_result.start_time)
+        # times[7] is the check for visibility of results page
+        self.assertEqual(times[8], result.s2c_result.end_time)
+        self.assertEqual(times[9], result.end_time)
 
 
 if __name__ == '__main__':
