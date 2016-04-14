@@ -1,10 +1,10 @@
 import os
 import SimpleHTTPServer
-import SocketServer
+import BaseHTTPServer
 import threading
 
 
-def get_custom_handler_and_set_root_directory(root_directory):
+def create_custom_http_handler_class(root_directory):
     """Creates and returns a custom SimpleHTTPRequestHandler subclass.
 
     Custom handler class handles requests relative to root_directory.
@@ -23,23 +23,27 @@ def get_custom_handler_and_set_root_directory(root_directory):
                 self, request, client_address, server)
 
         def translate_path(self, path):
-            return os.path.join(path, self._root)
+            if os.path.isabs(path):
+                path = os.path.relpath(path, '/')
+            return os.path.join(self._root, path)
 
     return CustomRootHTTPRequestHandler
 
 
 class NdtClientHTTPServer(object):
-    """Represents a SimpleHTTPServer listening on a randomly assigned port.
+    """A simple HTTP server that listens on a randomly assigned port.
+
+    Serves GET requests for files in a specified directory.
 
     Attributes:
-        port: Integer of the port number the server is bound to.
         client_path: Absolute path to the client files.
+        port: Integer of the port number the server is bound to.
     """
 
     def __init__(self, client_path):
-        self.client_path = client_path
+        self._client_path = client_path
         self._port = None
-        self._tcp_server = None
+        self._http_server = None
 
     @property
     def port(self):
@@ -50,20 +54,17 @@ class NdtClientHTTPServer(object):
 
         Port is assigned by the OS.
         """
-        handler = get_custom_handler_and_set_root_directory(self.client_path)
-        tcp_server = SocketServer.TCPServer(('', 0), handler)
+        #Create a custom handler class that we pass to the server
+        handler = create_custom_http_handler_class(self._client_path)
+        http_server = BaseHTTPServer.HTTPServer(('', 0), handler)
 
-        self._port = tcp_server.socket.getsockname()[1]
-        self._tcp_server = tcp_server
-
-    def _start_server(self):
-        self._tcp_server.serve_forever()
+        self._port = http_server.socket.getsockname()[1]
+        self._http_server = http_server
 
     def stop(self):
-        self._tcp_server.shutdown()
+        self._http_server.shutdown()
 
     def async_start(self):
         """Starts a server listening on its own thread."""
         self._create_server()
-        serving_thread = threading.Thread(target=self._start_server)
-        serving_thread.start()
+        threading.Thread(target=self._http_server.serve_forever).start()
