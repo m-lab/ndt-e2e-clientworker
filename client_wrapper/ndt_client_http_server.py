@@ -7,10 +7,10 @@ import threading
 def create_custom_http_handler_class(root_directory):
     """Creates and returns a custom SimpleHTTPRequestHandler subclass.
 
-    Custom handler class handles requests relative to root_directory. Class
-    creation takes place within a function to allow for dynamic defining of
-    an instance variable to an uninstantiated class passed into the
-    BaseHTTPServer.HTTPServer constructor.
+    This function dynamically assigns root_directory to an instance variable in
+    the custom handler constructor. This allows the custom handler to handle
+    requests relative to root_directory. This uninstantiated class is then
+    passed into the BaseHTTPServer.HTTPServer constructor.
 
     Args:
         root_directory: Absolute path to directory used as root for handler.
@@ -58,7 +58,7 @@ class NdtClientHTTPServer(object):
 
         Port is assigned by the OS.
         """
-        # Create a custom handler class that we pass to the server
+        # Create a custom class that will be passed into the server constructor
         handler = create_custom_http_handler_class(self._client_path)
         http_server = BaseHTTPServer.HTTPServer(('', 0), handler)
 
