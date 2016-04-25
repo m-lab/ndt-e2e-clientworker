@@ -1,4 +1,3 @@
-<<<<<<< 31a7565a55aed162f5806e42ad87e6bb3398fa9c
 # Copyright 2016 Measurement Lab
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -160,6 +159,7 @@ class StaticFileHTTPServerTest(unittest.TestCase):
 
     def test_http_server_async_start_fails_when_server_constructor_throws_exception(
             self):
+
         class MockSocketError(socket.error):
 
             def __init__(self, cause):
