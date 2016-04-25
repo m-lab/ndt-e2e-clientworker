@@ -1,3 +1,4 @@
+<<<<<<< 31a7565a55aed162f5806e42ad87e6bb3398fa9c
 # Copyright 2016 Measurement Lab
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,7 +15,12 @@
 
 from __future__ import absolute_import
 import contextlib
+<<<<<<< 202d231b747f930f373efb7c9bd89e52365aa1af
 import re
+=======
+import socket
+import subprocess
+>>>>>>> Removed the function that created a custom http handler, replaced it with creating a custom server class
 import unittest
 
 import mock
@@ -122,6 +128,47 @@ class ReplayHTTPServerTest(unittest.TestCase):
         with self.assertRaises(http_server.MitmProxyNotInstalledError):
             with contextlib.closing(self.make_server()):
                 pass
+
+
+class StaticFileHTTPServerTest(unittest.TestCase):
+
+    def setUp(self):
+        self.server = http_server.StaticFileHTTPServer('mock/client/path')
+        self.mock_handler = mock.Mock()
+        self.mock_http_server = mock.Mock()
+
+        http_server_patch = mock.patch.object(http_server,
+                                              'CustomRootHTTPRequestServer',
+                                              autospec=True)
+        self.addCleanup(http_server_patch.stop)
+        http_server_patch.start()
+
+    def test_http_server_async_start_starts_and_returns_successfully(self):
+        self.mock_http_server.socket.getsockname.return_value = ['', 8888]
+        http_server.CustomRootHTTPRequestServer.return_value = (
+            self.mock_http_server)
+
+        self.server.async_start()
+        self.assertEqual(8888, self.server.port)
+        http_server.CustomRootHTTPRequestServer.assert_called_with(
+            'mock/client/path')
+        self.assertTrue(self.mock_http_server.serve_forever.called)
+        self.assertFalse(self.mock_http_server.shutdown.called)
+
+        self.server.stop()
+        self.assertTrue(self.mock_http_server.shutdown.called)
+
+    def test_http_server_async_start_fails_when_server_constructor_throws_exception(
+            self):
+        class MockSocketError(socket.error):
+
+            def __init__(self, cause):
+                self.cause = cause
+
+        http_server.CustomRootHTTPRequestServer.side_effect = (
+            MockSocketError("Mock socket error."))
+        with self.assertRaises(MockSocketError):
+            self.server.async_start()
 
 
 if __name__ == '__main__':
