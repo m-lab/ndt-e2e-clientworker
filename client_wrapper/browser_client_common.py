@@ -68,4 +68,14 @@ def wait_until_element_is_visible(driver, element, timeout):
 
 
 def find_element_containing_text(driver, text):
+    """Finds the element that contains the specified text in the browser DOM.
+
+    Args:
+        driver: An instance of a Selenium webdriver browser class.
+        text: Text to search for within elements.
+
+    Returns:
+        The first element in the DOM that contains the specified text, or None
+        if there are no matches.
+    """
     return driver.find_element_by_xpath('//*[contains(text(), \'%s\')]' % text)

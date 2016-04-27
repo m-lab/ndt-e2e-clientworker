@@ -61,7 +61,7 @@ class NdtHtml5SeleniumDriverTest(unittest.TestCase):
         self.addCleanup(create_browser_patcher.stop)
         create_browser_patcher.start()
         browser_client_common.find_element_containing_text.side_effect = (
-            lambda driver, text: self.mock_elements_by_text[text])
+            lambda _, text: self.mock_elements_by_text[text])
 
         # Patch the call to create the browser driver to return our mock driver.
         create_browser_patcher = mock.patch.object(browser_client_common,
