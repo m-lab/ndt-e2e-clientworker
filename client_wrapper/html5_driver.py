@@ -27,6 +27,9 @@ import results
 ERROR_C2S_NEVER_STARTED = 'Timed out waiting for c2s test to begin.'
 ERROR_S2C_NEVER_STARTED = 'Timed out waiting for c2s test to begin.'
 ERROR_S2C_NEVER_ENDED = 'Timed out waiting for c2s test to end.'
+ERROR_START_BUTTON_NOT_IN_DOM = '"Start Test" button does not appear in DOM.'
+ERROR_TIMED_OUT_WAITING_FOR_START_BUTTON = (
+    'Timed out waiting for "Start Test" button to appear.')
 
 
 class NdtHtml5SeleniumDriver(object):
@@ -79,7 +82,10 @@ def _complete_ui_flow(driver, url, timeout, result):
     if not browser_client_common.load_url(driver, url, result.errors):
         return
 
-    _click_start_button(driver)
+    _click_websocket_button(driver)
+    # If we can't click the start button, nothing left to do, so bail out.
+    if not _click_start_button(driver, timeout, result.errors):
+        return
     result.c2s_result = results.NdtSingleTestResult()
     result.s2c_result = results.NdtSingleTestResult()
 
@@ -105,16 +111,36 @@ def _complete_ui_flow(driver, url, timeout, result):
     _populate_metric_values(result, driver)
 
 
-def _click_start_button(driver):
+def _click_websocket_button(driver):
+    # TODO(mtlynch): Handle case when element is not found.
+    driver.find_element_by_id('websocketButton').click()
+
+
+def _click_start_button(driver, timeout, errors):
     """Clicks the "Start Test" button in the web UI.
 
     Args:
         driver: An instance of a Selenium webdriver browser class.
+        timeout: Maximum time (in seconds) to wait for an element to appear in
+            the flow.
+        errors: An errors list.
+
+    Returns:
+        True if the "Start Test" button could be successfully located
+        and clicked.
     """
-    driver.find_element_by_id('websocketButton').click()
-    # TODO(mtlynch): Handle case when element is not found.
-    browser_client_common.find_element_containing_text(driver,
-                                                       'Start Test').click()
+    start_button = browser_client_common.find_element_containing_text(
+        driver, 'Start Test')
+    if not start_button:
+        errors.append(results.TestError(ERROR_START_BUTTON_NOT_IN_DOM))
+        return False
+    if not browser_client_common.wait_until_element_is_visible(
+            driver, start_button, timeout):
+        errors.append(results.TestError(
+            ERROR_TIMED_OUT_WAITING_FOR_START_BUTTON))
+        return False
+    start_button.click()
+    return True
 
 
 def _wait_for_c2s_test_to_start(driver, timeout):

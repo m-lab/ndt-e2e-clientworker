@@ -17,6 +17,7 @@ import unittest
 
 import mock
 import pytz
+
 from client_wrapper import browser_client_common
 from client_wrapper import html5_driver
 from tests import ndt_client_test
@@ -82,10 +83,47 @@ class NdtHtml5SeleniumDriverTest(ndt_client_test.NdtClientTest):
         self.assertEqual(3.0, result.latency)
         self.assertErrorMessagesEqual([], result.errors)
 
-    def test_test_in_progress_timeout_yields_timeout_errors(self):
-        """If each test times out, expect an error for each timeout."""
+    def test_fails_gracefully_when_start_button_not_in_dom(self):
+        self.mock_elements_by_text['Start Test'] = None
+
+        result = html5_driver.NdtHtml5SeleniumDriver(
+            browser='firefox',
+            url='http://ndt.mock-server.com:7123/',
+            timeout=1).perform_test()
+
+        self.assertIsNone(result.c2s_result.throughput)
+        self.assertIsNone(result.s2c_result.throughput)
+        self.assertIsNone(result.latency)
+        self.assertErrorMessagesEqual(
+            [html5_driver.ERROR_START_BUTTON_NOT_IN_DOM], result.errors)
+
+    def test_fails_gracefully_if_wait_for_start_button_times_out(self):
+        # Simulate a webdriver timeout when waiting for any element to appear,
+        # including the "Start Test" button.
         html5_driver.browser_client_common.wait_until_element_is_visible.return_value = (
             False)
+
+        result = html5_driver.NdtHtml5SeleniumDriver(
+            browser='firefox',
+            url='http://ndt.mock-server.com:7123/',
+            timeout=1).perform_test()
+
+        self.assertIsNone(result.c2s_result.throughput)
+        self.assertIsNone(result.s2c_result.throughput)
+        self.assertIsNone(result.latency)
+        self.assertErrorMessagesEqual(
+            [html5_driver.ERROR_TIMED_OUT_WAITING_FOR_START_BUTTON],
+            result.errors)
+
+    def test_test_in_progress_timeout_yields_timeout_errors(self):
+        """If each test times out, expect an error for each timeout."""
+        # Make the "Start Test" button visible, but others time out.
+        html5_driver.browser_client_common.wait_until_element_is_visible.side_effect = [
+            True,  # "Start Test" button
+            False,  # Upload speed label
+            False,  # Download speed label
+            False,  # Results div
+        ]
         result = html5_driver.NdtHtml5SeleniumDriver(
             browser='firefox',
             url='http://ndt.mock-server.com:7123/',
@@ -99,7 +137,10 @@ class NdtHtml5SeleniumDriverTest(ndt_client_test.NdtClientTest):
     def test_c2s_start_timeout_yields_errors(self):
         """If waiting for just c2s start times out, expect just one error."""
         html5_driver.browser_client_common.wait_until_element_is_visible.side_effect = [
-            False, True, True
+            True,  # "Start Test" button
+            False,  # Upload speed label
+            True,  # Download speed label
+            True,  # Results div
         ]
         result = html5_driver.NdtHtml5SeleniumDriver(
             browser='firefox',
@@ -236,7 +277,7 @@ class NdtHtml5SeleniumDriverTest(ndt_client_test.NdtClientTest):
     def test_ndt_result_increments_time_correctly(self):
         # Create a list of mock times to be returned by datetime.now().
         times = []
-        for i in range(10):
+        for i in range(11):
             times.append(datetime.datetime(2016, 1, 1, 0, 0, i))
 
         with mock.patch.object(html5_driver.datetime,
@@ -273,15 +314,16 @@ class NdtHtml5SeleniumDriverTest(ndt_client_test.NdtClientTest):
         # Verify the recorded times matches the expected sequence.
         self.assertEqual(times[0], result.start_time)
         # times[1] is the call from mock_firefox
-        # times[2] is the check for visibility of c2s test start
-        self.assertEqual(times[3], result.c2s_result.start_time)
-        # times[4] is the check for visibility of s2c test start (start of s2c
+        # times[2] is the check for visibility of "Start Test" button
+        # times[3] is the check for visibility of c2s test start
+        self.assertEqual(times[4], result.c2s_result.start_time)
+        # times[5] is the check for visibility of s2c test start (start of s2c
         #   marks the end of c2s)
-        self.assertEqual(times[5], result.c2s_result.end_time)
-        self.assertEqual(times[6], result.s2c_result.start_time)
-        # times[7] is the check for visibility of results page
-        self.assertEqual(times[8], result.s2c_result.end_time)
-        self.assertEqual(times[9], result.end_time)
+        self.assertEqual(times[6], result.c2s_result.end_time)
+        self.assertEqual(times[7], result.s2c_result.start_time)
+        # times[8] is the check for visibility of results page
+        self.assertEqual(times[9], result.s2c_result.end_time)
+        self.assertEqual(times[10], result.end_time)
 
 
 if __name__ == '__main__':
