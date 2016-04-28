@@ -133,13 +133,17 @@ class ReplayHTTPServer(object):
             self._mlabns_thread.join()
 
 
-class CustomRootHTTPRequestServer(BaseHTTPServer.HTTPServer):
+class _CustomRootHTTPRequestServer(BaseHTTPServer.HTTPServer):
     """HTTP request server that allows for a root directory to be set."""
 
     def __init__(self, root_directory):
-        self.root_directory = root_directory
+        self._root_directory = root_directory
         BaseHTTPServer.HTTPServer.__init__(self, ('', 0),
                                            _CustomRootHTTPRequestHandler)
+
+    @property
+    def root_directory(self):
+        return self._root_directory
 
 
 class _CustomRootHTTPRequestHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
@@ -163,12 +167,12 @@ class StaticFileHTTPServer(object):
     Serves GET requests for files in a specified directory.
 
     Attributes:
-        client_path: Absolute path to the client files.
+        file_path: Absolute path to the files served.
         port: Integer of the port number the server is bound to.
     """
 
-    def __init__(self, client_path):
-        self._client_path = client_path
+    def __init__(self, file_path):
+        self._file_path = file_path
         self._port = None
         self._http_server = None
 
@@ -181,11 +185,11 @@ class StaticFileHTTPServer(object):
 
         Port is assigned by the OS.
         """
-        http_server = CustomRootHTTPRequestServer(self._client_path)
-        self._port = http_server.socket.getsockname()[1]
+        http_server = _CustomRootHTTPRequestServer(self._file_path)
+        self._port = http_server.server_address[1]
         self._http_server = http_server
 
-    def stop(self):
+    def close(self):
         self._http_server.shutdown()
 
     def async_start(self):
