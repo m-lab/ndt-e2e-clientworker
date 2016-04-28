@@ -14,13 +14,12 @@
 
 from __future__ import absolute_import
 import contextlib
-<<<<<<< 202d231b747f930f373efb7c9bd89e52365aa1af
+import os
 import re
-=======
 import socket
 import subprocess
->>>>>>> Removed the function that created a custom http handler, replaced it with creating a custom server class
 import unittest
+import urllib2
 
 import mock
 
@@ -132,41 +131,33 @@ class ReplayHTTPServerTest(unittest.TestCase):
 class StaticFileHTTPServerTest(unittest.TestCase):
 
     def setUp(self):
-        self.server = http_server.StaticFileHTTPServer('mock/client/path')
-        self.mock_handler = mock.Mock()
-        self.mock_http_server = mock.Mock()
+        # Build an absolute path to the test data from the current working
+        # directory and constant relative path to test data
+        test_directory = os.path.join(os.getcwd(),
+                                      'tests/testdata/static_file_server')
+        self.server = http_server.StaticFileHTTPServer(test_directory)
 
-        http_server_patch = mock.patch.object(http_server,
-                                              'CustomRootHTTPRequestServer',
-                                              autospec=True)
-        self.addCleanup(http_server_patch.stop)
-        http_server_patch.start()
-
-    def test_http_server_async_start_starts_and_returns_successfully(self):
-        self.mock_http_server.socket.getsockname.return_value = ['', 8888]
-        http_server.CustomRootHTTPRequestServer.return_value = (
-            self.mock_http_server)
-
+    def test_http_server_serves_correct_file(self):
         self.server.async_start()
-        self.assertEqual(8888, self.server.port)
-        http_server.CustomRootHTTPRequestServer.assert_called_with(
-            'mock/client/path')
-        self.assertTrue(self.mock_http_server.serve_forever.called)
-        self.assertFalse(self.mock_http_server.shutdown.called)
+        self.assertIsNotNone(self.server.port)
 
-        self.server.stop()
-        self.assertTrue(self.mock_http_server.shutdown.called)
+        actual_response = urllib2.urlopen('http://127.0.0.1:%d/foo.html' %
+                                          self.server.port).read()
+        expected_response = '<!DOCTYPE html><html>foo</html>'
 
-    def test_http_server_async_start_fails_when_server_constructor_throws_exception(
-            self):
+        self.assertEqual(actual_response, expected_response)
+        self.server.close()
+
+    @mock.patch.object(http_server, '_CustomRootHTTPRequestServer')
+    def test_http_server_async_start_fails_when_server_constructor_throws_a_socket_error(
+            self, mock_server):
 
         class MockSocketError(socket.error):
 
             def __init__(self, cause):
                 self.cause = cause
 
-        http_server.CustomRootHTTPRequestServer.side_effect = (
-            MockSocketError("Mock socket error."))
+        mock_server.side_effect = (MockSocketError('Mock socket error.'))
         with self.assertRaises(MockSocketError):
             self.server.async_start()
 
