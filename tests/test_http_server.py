@@ -143,7 +143,7 @@ class StaticFileHTTPServerTest(unittest.TestCase):
 
         actual_response = urllib2.urlopen('http://127.0.0.1:%d/foo.html' %
                                           self.server.port).read()
-        expected_response = '<!DOCTYPE html><html>foo</html>'
+        expected_response = '<!DOCTYPE html><html>foo</html>\n'
 
         self.assertEqual(actual_response, expected_response)
         self.server.close()
