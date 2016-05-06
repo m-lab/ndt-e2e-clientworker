@@ -89,7 +89,8 @@ class ReplayHTTPServer(object):
         Start the fake mlab-ns server in a background thread, but block until
         that thread begins.
         """
-        self._mlabns_thread = threading.Thread(target=self._mlabns_server.serve_forever)
+        self._mlabns_thread = threading.Thread(
+            target=self._mlabns_server.serve_forever)
         self._mlabns_thread.start()
         self._wait_for_local_http_response(self._mlabns_server.port)
 
@@ -136,14 +137,16 @@ class ReplayHTTPServer(object):
 
     def _wait_for_local_http_response(self, port):
         start_time = datetime.datetime.now(tz=pytz.utc)
-        while (datetime.datetime.now(tz=pytz.utc) - start_time).total_seconds() < 5:
+        while (datetime.datetime.now(tz=pytz.utc) -
+               start_time).total_seconds() < 5:
             try:
                 urllib.urlopen('http://localhost:%d/' % port)
                 return
             except IOError:
                 pass
-        raise ValueError('Timed out waiting for localhost:%d to begin accepting connections' % port)
-
+        raise ValueError(
+            'Timed out waiting for localhost:%d to begin accepting connections'
+            % port)
 
     def close(self):
         """Close the replay server by terminating all background workers.

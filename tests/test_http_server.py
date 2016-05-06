@@ -44,12 +44,22 @@ class ReplayHTTPServerTest(unittest.TestCase):
         self.addCleanup(urllib_urlopen_patch.stop)
         urllib_urlopen_patch.start()
 
+        # Create a set of mock ports that we will simulate opening. Any port in
+        # the set is a port we're simulating a listen on.
         self.mock_listening_ports = set()
+
+        # Create a mock implementation of urlopen that raises IOError unless the
+        # requested port is one that has been set to listen.
         def mock_urlopen(url):
+            # Parse the port number from the URL.
             match = re.search(r'localhost:(\d+)', url)
             if not match:
-                raise ValueError('test error: url in unexpected format: %s' % url)
+                raise ValueError('test error: url in unexpected format: %s' %
+                                 url)
             port = int(match.group(1))
+
+            # If the requested port is one we're simulating a listen on, return
+            # a dummy response. Otherwise, raise an IOError.
             if port in self.mock_listening_ports:
                 return 'mock HTTP response'
             else:
@@ -60,7 +70,10 @@ class ReplayHTTPServerTest(unittest.TestCase):
         self.mock_mlabns_server = mock.Mock(spec=fake_mlabns.FakeMLabNsServer,
                                             port=MOCK_MLABNS_PORT)
 
-        self.mock_mlabns_server.serve_forever.side_effect = self.mock_listening_ports.add(MOCK_MLABNS_PORT)
+        # Simulate listening on the mlab-ns listen port when the serve_forever
+        # method is called.
+        self.mock_mlabns_server.serve_forever.side_effect = lambda: self.mock_listening_ports.add(
+            MOCK_MLABNS_PORT)
 
     def make_server(self):
         """Convenience method to create server under test."""
@@ -69,7 +82,13 @@ class ReplayHTTPServerTest(unittest.TestCase):
 
     def test_creating_server_creates_correct_threads_and_processes(self):
         mock_mitmdump_proc = mock.Mock()
-        def mock_mitmdump_popen(args, stdout):
+
+        # Mock the effect of launching mitmdump in a subprocess. Simulates a
+        # listen on the port that mitmdump would listen on.
+        #
+        # Note: stdout is unused, but it must be named "stdout" because the code
+        # under test calls the function with a keyword parameter.
+        def mock_mitmdump_popen(unused_args, stdout):
             self.mock_listening_ports.add(MOCK_LISTEN_PORT)
             return mock_mitmdump_proc
 
