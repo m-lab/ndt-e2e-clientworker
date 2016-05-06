@@ -72,8 +72,8 @@ class ReplayHTTPServerTest(unittest.TestCase):
 
         # Simulate listening on the mlab-ns listen port when the serve_forever
         # method is called.
-        self.mock_mlabns_server.serve_forever.side_effect = lambda: self.mock_listening_ports.add(
-            MOCK_MLABNS_PORT)
+        self.mock_mlabns_server.serve_forever.side_effect = (
+            lambda: self.mock_listening_ports.add(MOCK_MLABNS_PORT))
 
     def make_server(self):
         """Convenience method to create server under test."""
@@ -83,7 +83,7 @@ class ReplayHTTPServerTest(unittest.TestCase):
     def test_creating_server_creates_correct_threads_and_processes(self):
         mock_mitmdump_proc = mock.Mock()
 
-        # Mock the effect of launching mitmdump in a subprocess. Simulates a
+        # Mock the effect of launching mitmdump in a subprocess. Simulate a
         # listen on the port that mitmdump would listen on.
         #
         # Note: stdout is unused, but it must be named "stdout" because the code
@@ -95,7 +95,7 @@ class ReplayHTTPServerTest(unittest.TestCase):
         http_server.subprocess.Popen.side_effect = mock_mitmdump_popen
 
         with contextlib.closing(self.make_server()):
-            # Verify that mitmdump was spawned correctly
+            # Verify that mitmdump was spawned correctly.
             http_server.subprocess.Popen.assert_called_once_with(
                 ['mitmdump', '--no-http2', '--no-pop', '--port=8123',
                  '--reverse=http://ignored.ignored', '--replay-ignore-host',
