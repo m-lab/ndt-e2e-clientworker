@@ -14,7 +14,7 @@
 
 from __future__ import absolute_import
 import contextlib
-import subprocess
+import re
 import unittest
 
 import mock
@@ -31,14 +31,36 @@ class ReplayHTTPServerTest(unittest.TestCase):
 
     def setUp(self):
         # Mock out calls to subprocess.Popen.
-        subprocess_popen_patch = mock.patch.object(subprocess,
+        subprocess_popen_patch = mock.patch.object(http_server.subprocess,
                                                    'Popen',
                                                    autospec=True)
         self.addCleanup(subprocess_popen_patch.stop)
         subprocess_popen_patch.start()
 
+        # Mock out calls to urllib.urlopen.
+        urllib_urlopen_patch = mock.patch.object(http_server.urllib,
+                                                 'urlopen',
+                                                 autospec=True)
+        self.addCleanup(urllib_urlopen_patch.stop)
+        urllib_urlopen_patch.start()
+
+        self.mock_listening_ports = set()
+        def mock_urlopen(url):
+            match = re.search(r'localhost:(\d+)', url)
+            if not match:
+                raise ValueError('test error: url in unexpected format: %s' % url)
+            port = int(match.group(1))
+            if port in self.mock_listening_ports:
+                return 'mock HTTP response'
+            else:
+                raise IOError('mock error from urlopen')
+
+        http_server.urllib.urlopen.side_effect = mock_urlopen
+
         self.mock_mlabns_server = mock.Mock(spec=fake_mlabns.FakeMLabNsServer,
                                             port=MOCK_MLABNS_PORT)
+
+        self.mock_mlabns_server.serve_forever.side_effect = self.mock_listening_ports.add(MOCK_MLABNS_PORT)
 
     def make_server(self):
         """Convenience method to create server under test."""
@@ -47,16 +69,20 @@ class ReplayHTTPServerTest(unittest.TestCase):
 
     def test_creating_server_creates_correct_threads_and_processes(self):
         mock_mitmdump_proc = mock.Mock()
-        subprocess.Popen.return_value = mock_mitmdump_proc
+        def mock_mitmdump_popen(args, stdout):
+            self.mock_listening_ports.add(MOCK_LISTEN_PORT)
+            return mock_mitmdump_proc
+
+        http_server.subprocess.Popen.side_effect = mock_mitmdump_popen
 
         with contextlib.closing(self.make_server()):
             # Verify that mitmdump was spawned correctly
-            subprocess.Popen.assert_called_once_with(
+            http_server.subprocess.Popen.assert_called_once_with(
                 ['mitmdump', '--no-http2', '--no-pop', '--port=8123',
                  '--reverse=http://ignored.ignored', '--replay-ignore-host',
                  '--server-replay=mock-file.replay',
                  '--replace=/~s/mlab\\-ns\\.appspot\\.com/localhost\\:8321'],
-                stdout=subprocess.PIPE)
+                stdout=http_server.subprocess.PIPE)
             # Verify that mlab-ns server is serving
             self.assertTrue(self.mock_mlabns_server.serve_forever.called)
             # Verify that the internal workers are not killed before we exit
@@ -72,7 +98,7 @@ class ReplayHTTPServerTest(unittest.TestCase):
     def test_raises_error_when_mitmproxy_is_not_installed(self):
         """If we can't execute mitmproxy, show a helpful error."""
         # Cause a mock error when spawning the mitmproxy process.
-        subprocess.Popen.side_effect = OSError('mock OSError')
+        http_server.subprocess.Popen.side_effect = OSError('mock OSError')
 
         with self.assertRaises(http_server.MitmProxyNotInstalledError):
             with contextlib.closing(self.make_server()):

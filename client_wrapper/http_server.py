@@ -17,9 +17,13 @@ Defines various HTTP server classes meant for hosting web-based NDT client
 implementations.
 """
 
+import datetime
 import re
 import subprocess
 import threading
+import urllib
+
+import pytz
 
 
 class Error(Exception):
@@ -67,38 +71,29 @@ class ReplayHTTPServer(object):
         self._mlabns_server = mlabns_server
         self._replay_filename = replay_filename
         self._mlabns_thread = None
-        self._mlabns_serving_event = threading.Event()
         self._server_proc = None
-        self._start_async()
+        self._start()
 
-    def _start_async(self):
+    def _start(self):
         """Start the replay HTTP traffic server asynchronously.
 
         Starts the replay HTTP server in a separate process and the fake mlab-ns
         server in a separate thread.
         """
-        self._start_fake_mlabns_async()
-        self._start_mitmdump_async()
+        self._start_fake_mlabns()
+        self._start_mitmdump()
 
-    def _start_fake_mlabns_async(self):
+    def _start_fake_mlabns(self):
         """Start the fake mlab-ns server in a background thread.
 
         Start the fake mlab-ns server in a background thread, but block until
         that thread begins.
         """
-        self._mlabns_thread = threading.Thread(target=self._start_fake_mlabns)
+        self._mlabns_thread = threading.Thread(target=self._mlabns_server.serve_forever)
         self._mlabns_thread.start()
-        self._mlabns_serving_event.wait()
+        self._wait_for_local_http_response(self._mlabns_server.port)
 
-    def _start_fake_mlabns(self):
-        # Set the serving event to indicate that fake mlab-ns server is serving.
-        # Note: There is a race condition here, as there is a delay between the
-        # time the event is set and the time the server actually begins serving.
-        # We assume that this is good enough for now.
-        self._mlabns_serving_event.set()
-        self._mlabns_server.serve_forever()
-
-    def _start_mitmdump_async(self):
+    def _start_mitmdump(self):
         """Starts a mitmdump process as a reverse proxy to replay traffic.
 
         Note that it is in theory possible to launch mitmdump in pure Python
@@ -136,6 +131,19 @@ class ReplayHTTPServer(object):
                                                  stdout=subprocess.PIPE)
         except OSError:
             raise MitmProxyNotInstalledError()
+
+        self._wait_for_local_http_response(self._listen_port)
+
+    def _wait_for_local_http_response(self, port):
+        start_time = datetime.datetime.now(tz=pytz.utc)
+        while (datetime.datetime.now(tz=pytz.utc) - start_time).total_seconds() < 5:
+            try:
+                urllib.urlopen('http://localhost:%d/' % port)
+                return
+            except IOError:
+                pass
+        raise ValueError('Timed out waiting for localhost:%d to begin accepting connections' % port)
+
 
     def close(self):
         """Close the replay server by terminating all background workers.
