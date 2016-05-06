@@ -39,6 +39,15 @@ class MitmProxyNotInstalledError(Error):
             'http://docs.mitmproxy.org/en/stable/install.html')
 
 
+class HttpWaitTimeoutError(Error):
+    """Error raised when waiting for an HTTP response timed out."""
+
+    def __init__(self, port):
+        super(HttpWaitTimeoutError, self).__init__(
+            'Wait timeout exceeded when waiting for a response on local port ' +
+            port)
+
+
 class ReplayHTTPServer(object):
     """HTTP server that replays saved HTTP traffic to facilitate an NDT test.
 
@@ -136,17 +145,19 @@ class ReplayHTTPServer(object):
         self._wait_for_local_http_response(self._listen_port)
 
     def _wait_for_local_http_response(self, port):
+        """Wait for a local port to begin responding to HTTP requests."""
+        # Maximum number of seconds to wait for a port to begin responding to
+        # HTTP requests.
+        max_wait_seconds = 5
         start_time = datetime.datetime.now(tz=pytz.utc)
         while (datetime.datetime.now(tz=pytz.utc) -
-               start_time).total_seconds() < 5:
+               start_time).total_seconds() < max_wait_seconds:
             try:
                 urllib.urlopen('http://localhost:%d/' % port)
                 return
             except IOError:
                 pass
-        raise ValueError(
-            'Timed out waiting for localhost:%d to begin accepting connections'
-            % port)
+        raise HttpWaitTimeoutError(port)
 
     def close(self):
         """Close the replay server by terminating all background workers.
