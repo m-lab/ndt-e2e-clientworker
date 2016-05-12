@@ -17,7 +17,6 @@ import contextlib
 import os
 import re
 import socket
-import subprocess
 import unittest
 import urllib2
 
