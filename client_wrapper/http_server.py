@@ -236,7 +236,8 @@ class StaticFileHTTPServer(object):
         self._http_server = http_server
 
     def close(self):
-        self._http_server.shutdown()
+        if self._http_server:
+            self._http_server.shutdown()
 
     def async_start(self):
         """Starts a server listening on its own thread."""

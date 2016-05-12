@@ -136,6 +136,7 @@ class StaticFileHTTPServerTest(unittest.TestCase):
         test_directory = os.path.join(os.getcwd(),
                                       'tests/testdata/static_file_server')
         self.server = http_server.StaticFileHTTPServer(test_directory)
+        self.addCleanup(self.server.close)
 
     def test_http_server_serves_correct_file(self):
         self.server.async_start()
@@ -146,7 +147,6 @@ class StaticFileHTTPServerTest(unittest.TestCase):
         expected_response = '<!DOCTYPE html><html>foo</html>\n'
 
         self.assertEqual(actual_response, expected_response)
-        self.server.close()
 
     @mock.patch.object(http_server, '_CustomRootHTTPRequestServer')
     def test_http_server_async_start_fails_when_server_constructor_throws_a_socket_error(
