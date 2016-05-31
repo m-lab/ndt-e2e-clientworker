@@ -17,8 +17,11 @@ Defines various HTTP server classes meant for hosting web-based NDT client
 implementations.
 """
 
+import BaseHTTPServer
 import datetime
+import os
 import re
+import SimpleHTTPServer
 import subprocess
 import threading
 import urllib
@@ -174,3 +177,69 @@ class ReplayHTTPServer(object):
         if self._mlabns_thread:
             self._mlabns_server.shutdown()
             self._mlabns_thread.join()
+
+
+class _CustomRootHTTPRequestServer(BaseHTTPServer.HTTPServer):
+    """HTTP request server that allows for a root directory to be set."""
+
+    def __init__(self, root_directory):
+        self._root_directory = root_directory
+        BaseHTTPServer.HTTPServer.__init__(self, ('', 0),
+                                           _CustomRootHTTPRequestHandler)
+
+    @property
+    def root_directory(self):
+        return self._root_directory
+
+
+class _CustomRootHTTPRequestHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
+    """HTTP request handler that allows for a root directory to be set."""
+
+    def __init__(self, request, client_address, server):
+        self._root = server.root_directory
+        SimpleHTTPServer.SimpleHTTPRequestHandler.__init__(
+            self, request, client_address, server)
+
+    def translate_path(self, path):
+        # Make sure path is relative
+        if path[0] == '/':
+            path = path[1:]
+        return os.path.join(self._root, path)
+
+
+class StaticFileHTTPServer(object):
+    """A simple HTTP server that listens on a randomly assigned port.
+
+    Serves GET requests for files in a specified directory.
+
+    Attributes:
+        file_path: Absolute path to the files served.
+        port: Integer of the port number the server is bound to.
+    """
+
+    def __init__(self, file_path):
+        self._file_path = file_path
+        self._port = None
+        self._http_server = None
+
+    @property
+    def port(self):
+        return self._port
+
+    def _create_server(self):
+        """Creates an HTTP server instance bound to a random available port.
+
+        Port is assigned by the OS.
+        """
+        http_server = _CustomRootHTTPRequestServer(self._file_path)
+        self._port = http_server.server_address[1]
+        self._http_server = http_server
+
+    def close(self):
+        if self._http_server:
+            self._http_server.shutdown()
+
+    def async_start(self):
+        """Starts a server listening on its own thread."""
+        self._create_server()
+        threading.Thread(target=self._http_server.serve_forever).start()

@@ -14,8 +14,11 @@
 
 from __future__ import absolute_import
 import contextlib
+import os
 import re
+import socket
 import unittest
+import urllib2
 
 import mock
 
@@ -122,6 +125,40 @@ class ReplayHTTPServerTest(unittest.TestCase):
         with self.assertRaises(http_server.MitmProxyNotInstalledError):
             with contextlib.closing(self.make_server()):
                 pass
+
+
+class StaticFileHTTPServerTest(unittest.TestCase):
+
+    def setUp(self):
+        # Build an absolute path to the test data from the current working
+        # directory and constant relative path to test data
+        test_directory = os.path.join(os.getcwd(),
+                                      'tests/testdata/static_file_server')
+        self.server = http_server.StaticFileHTTPServer(test_directory)
+        self.addCleanup(self.server.close)
+
+    def test_http_server_serves_correct_file(self):
+        self.server.async_start()
+        self.assertIsNotNone(self.server.port)
+
+        actual_response = urllib2.urlopen('http://127.0.0.1:%d/foo.html' %
+                                          self.server.port).read()
+        expected_response = '<!DOCTYPE html><html>foo</html>\n'
+
+        self.assertEqual(actual_response, expected_response)
+
+    @mock.patch.object(http_server, '_CustomRootHTTPRequestServer')
+    def test_http_server_async_start_fails_when_server_constructor_throws_a_socket_error(
+            self, mock_server):
+
+        class MockSocketError(socket.error):
+
+            def __init__(self, cause):
+                self.cause = cause
+
+        mock_server.side_effect = (MockSocketError('Mock socket error.'))
+        with self.assertRaises(MockSocketError):
+            self.server.async_start()
 
 
 if __name__ == '__main__':
