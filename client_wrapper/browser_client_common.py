@@ -67,6 +67,12 @@ def create_browser(browser):
     else:
         raise ValueError('Invalid browser specified: %s' % browser)
 
+    # set_page_load_timeout is not currently supported by the Chrome driver
+    if browser == names.CHROME:
+        driver.implicitly_wait(10)
+    else:
+        driver.set_page_load_timeout(10)
+
     yield driver
     driver.quit()
 
