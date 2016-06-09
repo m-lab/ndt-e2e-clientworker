@@ -23,6 +23,7 @@ import names
 import results
 
 ERROR_FAILED_TO_LOAD_URL_FORMAT = 'Failed to load URL: %s'
+ERROR_TIMED_OUT_WAITING_FOR_PAGE_LOAD = 'Timed out waiting for page to load.'
 
 # TODO(mtlynch): Define all error strings as public constants so we're not
 # duplicating strings between production code and unit test code.
@@ -67,11 +68,8 @@ def create_browser(browser):
     else:
         raise ValueError('Invalid browser specified: %s' % browser)
 
-    # set_page_load_timeout is not currently supported by the Chrome driver
-    if browser == names.CHROME:
-        driver.implicitly_wait(10)
-    else:
-        driver.set_page_load_timeout(10)
+    # currently ignored by the Chrome driver
+    driver.set_page_load_timeout(10)
 
     yield driver
     driver.quit()
@@ -115,7 +113,10 @@ def load_url(driver, url, errors):
     """
     try:
         driver.get(url)
-    except exceptions.WebDriverException:
+    except (exceptions.WebDriverException, exceptions.TimeoutException) as e:
+        if type(e) is exceptions.TimeoutException:
+            errors.append(results.TestError(
+                ERROR_TIMED_OUT_WAITING_FOR_PAGE_LOAD))
         errors.append(results.TestError(ERROR_FAILED_TO_LOAD_URL_FORMAT % url))
         return False
     return True

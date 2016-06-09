@@ -29,12 +29,15 @@ class CreateBrowserTest(unittest.TestCase):
     def test_create_firefox_browser_succeeds(self, mock_firefox):
         mock_browser_driver = mock.Mock('mock firefox driver')
         mock_browser_driver.quit = mock.Mock()
+        mock_browser_driver.set_page_load_timeout = mock.Mock()
         mock_firefox.return_value = mock_browser_driver
 
         with browser_client_common.create_browser(names.FIREFOX) as driver:
             self.assertTrue(mock_firefox.called)
             self.assertEqual(mock_browser_driver, driver)
             self.assertFalse(mock_browser_driver.quit.called)
+            self.assertTrue(
+                mock_browser_driver.set_page_load_timeout.called_once_with(10))
 
         self.assertTrue(mock_browser_driver.quit.called)
 
@@ -42,12 +45,15 @@ class CreateBrowserTest(unittest.TestCase):
     def test_create_chrome_browser_succeeds(self, mock_chrome):
         mock_browser_driver = mock.Mock('mock chrome driver')
         mock_browser_driver.quit = mock.Mock()
+        mock_browser_driver.set_page_load_timeout = mock.Mock()
         mock_chrome.return_value = mock_browser_driver
 
         with browser_client_common.create_browser(names.CHROME) as driver:
             self.assertTrue(mock_chrome.called)
             self.assertEqual(mock_browser_driver, driver)
             self.assertFalse(mock_browser_driver.quit.called)
+            self.assertTrue(
+                mock_browser_driver.set_page_load_timeout.called_once_with(10))
 
         self.assertTrue(mock_browser_driver.quit.called)
 
@@ -55,12 +61,15 @@ class CreateBrowserTest(unittest.TestCase):
     def test_create_edge_driver_succeeds(self, mock_edge):
         mock_browser_driver = mock.Mock('mock edge driver')
         mock_browser_driver.quit = mock.Mock()
+        mock_browser_driver.set_page_load_timeout = mock.Mock()
         mock_edge.return_value = mock_browser_driver
 
         with browser_client_common.create_browser(names.EDGE) as driver:
             self.assertTrue(mock_edge.called)
             self.assertEqual(mock_browser_driver, driver)
             self.assertFalse(mock_browser_driver.quit.called)
+            self.assertTrue(
+                mock_browser_driver.set_page_load_timeout.called_once_with(10))
 
         self.assertTrue(mock_browser_driver.quit.called)
 
@@ -68,12 +77,15 @@ class CreateBrowserTest(unittest.TestCase):
     def test_create_safari_browser_succeeds(self, mock_safari):
         mock_browser_driver = mock.Mock('mock safari driver')
         mock_browser_driver.quit = mock.Mock()
+        mock_browser_driver.set_page_load_timeout = mock.Mock()
         mock_safari.return_value = mock_browser_driver
 
         with browser_client_common.create_browser(names.SAFARI) as driver:
             self.assertTrue(mock_safari.called)
             self.assertEqual(mock_browser_driver, driver)
             self.assertFalse(mock_browser_driver.quit.called)
+            self.assertTrue(
+                mock_browser_driver.set_page_load_timeout.called_once_with(10))
 
         self.assertTrue(mock_browser_driver.quit.called)
 
@@ -131,6 +143,17 @@ class LoadUrlTest(ndt_client_testcase.NdtClientTestCase):
             mock_driver, 'http://fake.url/foo', errors))
         self.assertErrorMessagesEqual(
             ['Failed to load URL: http://fake.url/foo'], errors)
+
+    def test_load_url_adds_timeout_error_to_result(self):
+        mock_driver = mock.Mock(spec=browser_client_common.webdriver.Firefox)
+        errors = []
+        mock_driver.get.side_effect = exceptions.TimeoutException(
+            'dummy exception')
+        self.assertFalse(browser_client_common.load_url(
+            mock_driver, 'http://fake.url/foo', errors))
+        self.assertErrorMessagesEqual(
+            ['Timed out waiting for page to load.',
+             'Failed to load URL: http://fake.url/foo'], errors)
 
 
 class WaitUntilElementIsVisibleTest(unittest.TestCase):

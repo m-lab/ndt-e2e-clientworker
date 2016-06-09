@@ -40,7 +40,6 @@ ERROR_FORMAT_ILLEGAL_S2C_THROUGHPUT = (
     'Illegal value shown for s2c throughput: [%s]')
 ERROR_FORMAT_ILLEGAL_C2S_THROUGHPUT = (
     'Illegal value shown for c2s throughput: [%s]')
-ERROR_TIMED_OUT_WAITING_FOR_PAGE_LOAD = 'Timed out waiting for page to load.'
 
 # Default number of seconds to wait for any particular stage of the UI flow to
 # complete.
@@ -79,9 +78,6 @@ class BanjoDriver(object):
                 logger.info('page loaded, starting UI flow')
                 _BanjoUiFlowWrapper(driver, self._url,
                                     result).complete_ui_flow()
-
-            else:
-                logger.error(ERROR_TIMED_OUT_WAITING_FOR_PAGE_LOAD)
 
         result.end_time = datetime.datetime.now(pytz.utc)
         logger.info('banjo test ended')

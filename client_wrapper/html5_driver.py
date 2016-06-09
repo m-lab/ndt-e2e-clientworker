@@ -32,7 +32,6 @@ ERROR_S2C_NEVER_ENDED = 'Timed out waiting for c2s test to end.'
 ERROR_START_BUTTON_NOT_IN_DOM = '"Start Test" button does not appear in DOM.'
 ERROR_TIMED_OUT_WAITING_FOR_START_BUTTON = (
     'Timed out waiting for "Start Test" button to appear.')
-ERROR_TIMED_OUT_WAITING_FOR_PAGE_LOAD = 'Timed out waiting for page to load.'
 
 
 class NdtHtml5SeleniumDriver(object):
@@ -86,7 +85,6 @@ def _complete_ui_flow(driver, url, timeout, result):
     """
     logger.info('loading URL: %s', url)
     if not browser_client_common.load_url(driver, url, result.errors):
-        logger.error(ERROR_TIMED_OUT_WAITING_FOR_PAGE_LOAD)
         return
     logger.info('page loaded, starting UI flow')
 
