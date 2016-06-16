@@ -30,8 +30,6 @@ logger = logging.getLogger(__name__)
 
 ERROR_FAILED_TO_LOCATE_RUN_TEST_BUTTON = (
     'Failed to locate "Run Speed Test" button.')
-ERROR_TIMEDOUT_WAITING_FOR_RUN_TEST_BUTTON = (
-    'Timed out waiting for "Run Speed Test" button to become clickable.')
 # TODO(mtlynch): Refactor the following errors into browser_client_common so that
 # banjo_driver and html5_driver use the same error strings.
 ERROR_NO_LATENCY_FIELD = 'Could not find latency field.'
