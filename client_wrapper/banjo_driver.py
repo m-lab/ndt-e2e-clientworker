@@ -30,6 +30,8 @@ logger = logging.getLogger(__name__)
 
 ERROR_FAILED_TO_LOCATE_RUN_TEST_BUTTON = (
     'Failed to locate "Run Speed Test" button.')
+ERROR_TIMEDOUT_WAITING_FOR_RUN_TEST_BUTTON = (
+    'Timed out waiting for "Run Speed Test" button to become clickable.')
 # TODO(mtlynch): Refactor the following errors into browser_client_common so that
 # banjo_driver and html5_driver use the same error strings.
 ERROR_NO_LATENCY_FIELD = 'Could not find latency field.'
@@ -147,13 +149,16 @@ class _BanjoUiFlowWrapper(object):
             self._result.c2s_result.throughput = upload_throughput
 
     def _click_run_test_button(self):
-        start_button = self._driver.find_element_by_id(
-            'lrfactory-internetspeed__test_button')
-        if not start_button:
+        wait = ui.WebDriverWait(self._driver, _DEFAULT_TIMEOUT)
+        try:
+            start_button = wait.until(
+                expected_conditions.element_to_be_clickable((
+                    by.By.ID, 'lrfactory-internetspeed__test_button')))
+
+        except exceptions.TimeoutException:
             self._add_test_error(ERROR_FAILED_TO_LOCATE_RUN_TEST_BUTTON)
             return False
-        # We skip waiting for the element to become visible because it should
-        # be visible as soon as the page loads.
+
         start_button.click()
         return True
 

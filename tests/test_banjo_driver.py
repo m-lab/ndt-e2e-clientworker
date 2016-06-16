@@ -139,8 +139,13 @@ class BanjoDriverTest(ndt_client_testcase.NdtClientTestCase):
             self.assertIsNone(result.s2c_result.throughput)
             self.assertIsNone(result.c2s_result.throughput)
 
-    def test_test_records_error_when_run_test_button_is_not_in_dom(self):
-        self.mock_elements_by_id['lrfactory-internetspeed__test_button'] = None
+    @mock.patch.object(banjo_driver, 'ui')
+    def test_test_records_error_when_run_test_button_is_not_in_dom(self,
+                                                                   mock_ui):
+        mock_wait_driver = mock.Mock()
+        mock_wait_driver.until.side_effect = exceptions.TimeoutException(
+            'mock_timeout')
+        mock_ui.WebDriverWait.return_value = mock_wait_driver
 
         result = self.banjo.perform_test()
 
