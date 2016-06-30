@@ -65,222 +65,210 @@ class NdtHtml5SeleniumDriver(object):
             # The NDT HTML5 client is hosted on a web server on port 7123 of the
             # NDT server.
             url = 'http://%s:7123' % self._server_fqdn
-            _complete_ui_flow(driver, url, result)
+            logger.info('loading URL: %s', url)
+            if not browser_client_common.load_url(driver, url, result.errors):
+                return
+            logger.info('page loaded, starting UI flow')
+            _NdtHtml5UiFlowWrapper(driver, url, result).complete_ui_flow()
 
         result.end_time = datetime.datetime.now(pytz.utc)
         logger.info('NDT HTML5 test ended')
         return result
 
 
-def _complete_ui_flow(driver, url, result):
-    """Performs the UI flow for the NDT HTML5 test and records results.
+class _NdtHtml5UiFlowWrapper(object):
 
-    Args:
-        driver: An instance of a Selenium webdriver browser class.
-        url: URL to load to start the UI flow.
-        result: NdtResult instance to populate with results from proceeding
-            through the UI flow.
-    """
-    logger.info('loading URL: %s', url)
-    if not browser_client_common.load_url(driver, url, result.errors):
-        return
-    logger.info('page loaded, starting UI flow')
+    def __init__(self, driver, url, result):
+        """Performs the UI flow for the NDT HTML5 test and records results.
 
-    _click_websocket_button(driver)
-    # If we can't click the start button, nothing left to do, so bail out.
-    if not _click_start_button(driver, result.errors):
-        return
-    logger.info('clicked "Start Test" button')
-    result.c2s_result = results.NdtSingleTestResult()
-    result.s2c_result = results.NdtSingleTestResult()
+        Args:
+            driver: An instance of a Selenium webdriver browser class.
+            url: URL to load to start the UI flow.
+            result: NdtResult instance to populate with results from proceeding
+                through the UI flow.
+        """
+        self._driver = driver
+        self._url = url
+        self._result = result
 
-    if _wait_for_c2s_test_to_start(driver):
-        result.c2s_result.start_time = datetime.datetime.now(pytz.utc)
-        logger.info('c2s test started')
-    else:
-        result.errors.append(results.TestError(
-            browser_client_common.ERROR_C2S_NEVER_STARTED))
-        logger.error(browser_client_common.ERROR_C2S_NEVER_STARTED)
+    def complete_ui_flow(self):
+        """Performs the UI flow for the NDT HTML5 test and records results."""
+        self._click_websocket_button()
+        # If we can't click the start button, nothing left to do, so bail out.
+        if not self._click_start_button():
+            return
+        logger.info('clicked "Start Test" button')
+        self._record_event_times()
+        self._parse_results_page()
 
-    if _wait_for_s2c_test_to_start(driver):
-        result.c2s_result.end_time = datetime.datetime.now(pytz.utc)
-        logger.info('c2s test finished')
-        result.s2c_result.start_time = datetime.datetime.now(pytz.utc)
-        logger.info('s2c test started')
-    else:
-        result.errors.append(results.TestError(
-            browser_client_common.ERROR_S2C_NEVER_STARTED))
-        logger.error(browser_client_common.ERROR_S2C_NEVER_STARTED)
+    def _click_websocket_button(self):
+        # TODO(mtlynch): Handle case when element is not found.
+        self._driver.find_element_by_id('websocketButton').click()
 
-    if _wait_for_results_page_to_appear(driver):
-        result.s2c_result.end_time = datetime.datetime.now(pytz.utc)
-        logger.info('s2c test finished')
-    else:
-        result.errors.append(results.TestError(
-            browser_client_common.ERROR_S2C_NEVER_ENDED))
-        logger.error(browser_client_common.ERROR_S2C_NEVER_ENDED)
+    def _click_start_button(self):
+        """Clicks the "Start Test" button in the web UI.
 
-    _populate_metric_values(result, driver)
+        Returns:
+            True if the "Start Test" button could be successfully located
+            and clicked.
+        """
+        start_button = browser_client_common.find_element_containing_text(
+            self._driver, 'Start Test')
+        if not start_button:
+            self._add_test_error(ERROR_START_BUTTON_NOT_IN_DOM)
+            return False
+        if not browser_client_common.wait_until_element_is_visible(
+                self._driver, start_button,
+                browser_client_common.UI_WAIT_TIMEOUT):
+            self._add_test_error(ERROR_TIMED_OUT_WAITING_FOR_START_BUTTON)
+            return False
+        start_button.click()
+        return True
 
-
-def _click_websocket_button(driver):
-    # TODO(mtlynch): Handle case when element is not found.
-    driver.find_element_by_id('websocketButton').click()
-
-
-def _click_start_button(driver, errors):
-    """Clicks the "Start Test" button in the web UI.
-
-    Args:
-        driver: An instance of a Selenium webdriver browser class.
-        errors: An errors list.
-
-    Returns:
-        True if the "Start Test" button could be successfully located
-        and clicked.
-    """
-    start_button = browser_client_common.find_element_containing_text(
-        driver, 'Start Test')
-    if not start_button:
-        errors.append(results.TestError(ERROR_START_BUTTON_NOT_IN_DOM))
-        logger.error(ERROR_START_BUTTON_NOT_IN_DOM)
-        return False
-    if not browser_client_common.wait_until_element_is_visible(
-            driver, start_button, browser_client_common.UI_WAIT_TIMEOUT):
-        errors.append(results.TestError(
-            ERROR_TIMED_OUT_WAITING_FOR_START_BUTTON))
-        logger.error(ERROR_TIMED_OUT_WAITING_FOR_START_BUTTON)
-        return False
-    start_button.click()
-    return True
-
-
-def _wait_for_c2s_test_to_start(driver):
-    # Wait until the 'Now Testing your upload speed' banner is displayed.
-    upload_speed_element = browser_client_common.find_element_containing_text(
-        driver, 'your upload speed')
-    return browser_client_common.wait_until_element_is_visible(
-        driver, upload_speed_element,
-        browser_client_common.NDT_TEST_NEGOTIATION_TIMEOUT)
-
-
-def _wait_for_s2c_test_to_start(driver):
-    # Wait until the 'Now Testing your download speed' banner is displayed.
-    download_speed_element = browser_client_common.find_element_containing_text(
-        driver, 'your download speed')
-    return browser_client_common.wait_until_element_is_visible(
-        driver, download_speed_element,
-        browser_client_common.NDT_TEST_RUN_TIMEOUT)
-
-
-def _wait_for_results_page_to_appear(driver):
-    results_element = driver.find_element_by_id('results')
-    return browser_client_common.wait_until_element_is_visible(
-        driver, results_element, browser_client_common.NDT_TEST_RUN_TIMEOUT)
-
-
-def _populate_metric_values(result, driver):
-    """Populates NdtResult with metrics from page, checks values are valid.
-
-    Populates the NdtResult instance with metrics from the NDT test page. Checks
-    that the values for upload (c2s) throughput, download (s2c) throughput, and
-    latency within the NdtResult instance dict are valid.
-
-    Args:
-        result: An instance of NdtResult.
-        driver: An instance of a Selenium webdriver browser class.
-    """
-    c2s_throughput = driver.find_element_by_id('upload-speed').text
-    c2s_throughput_units = driver.find_element_by_id('upload-speed-units').text
-
-    result.c2s_result.throughput = _parse_throughput(
-        result.errors, c2s_throughput, c2s_throughput_units, 'c2s throughput')
-
-    s2c_throughput = driver.find_element_by_id('download-speed').text
-
-    s2c_throughput_units = driver.find_element_by_id(
-        'download-speed-units').text
-    result.s2c_result.throughput = _parse_throughput(
-        result.errors, s2c_throughput, s2c_throughput_units, 's2c throughput')
-
-    result.latency = driver.find_element_by_id('latency').text
-    result.latency = _validate_metric(result.errors, result.latency, 'latency')
-
-
-def _parse_throughput(errors, throughput, throughput_units,
-                      throughput_metric_name):
-    """Converts metric into a valid numeric value in Mb/s .
-
-    For a given metric, checks that it is a valid numeric value. If not, an
-    error is added to the list contained in the NdtResult instance attribute.
-    If it is, it is converted into Mb/s where necessary.
-
-    Args:
-        errors: An errors list.
-        throughput: The throughput value that is to be evaluated.
-        throughput_units: The units for the throughput value that is to be
-        evaluated (one of kb/s, Mb/s, Gb/s).
-        throughput_metric_name: A string representing the name of the throughput
-        metric to validate.
-
-    Returns:
-        float representing the converted metric, None if an illegal value
-            is given.
-    """
-    if _convert_metric_to_float(errors, throughput, throughput_metric_name):
-        throughput = float(throughput)
-        if throughput_units == 'kb/s':
-            converted_throughput = throughput / 1000
-            return converted_throughput
-        elif throughput_units == 'Gb/s':
-            converted_throughput = throughput * 1000
-            return converted_throughput
-        elif throughput_units == 'Mb/s':
-            return throughput
+    def _record_event_times(self):
+        if self._wait_for_c2s_test_to_start():
+            self._result.c2s_result.start_time = datetime.datetime.now(pytz.utc)
+            logger.info('c2s test started')
         else:
-            errors.append(results.TestError(
-                'Invalid throughput unit specified: %s' % throughput_units))
-    return None
+            self._add_test_error(browser_client_common.ERROR_C2S_NEVER_STARTED)
 
+        if self._wait_for_s2c_test_to_start():
+            self._result.c2s_result.end_time = datetime.datetime.now(pytz.utc)
+            logger.info('c2s test finished')
+            self._result.s2c_result.start_time = datetime.datetime.now(pytz.utc)
+            logger.info('s2c test started')
+        else:
+            self._add_test_error(browser_client_common.ERROR_S2C_NEVER_STARTED)
 
-def _convert_metric_to_float(errors, metric, metric_name):
-    """Converts a given metric to a float, otherwise, adds an error object.
+        if self._wait_for_results_page_to_appear():
+            self._result.s2c_result.end_time = datetime.datetime.now(pytz.utc)
+            logger.info('s2c test finished')
+        else:
+            self._add_test_error(browser_client_common.ERROR_S2C_NEVER_ENDED)
 
-    If a given metric can be converted to a float, it is converted. Otherwise,
-    a TestError object is added to errors.
+    def _wait_for_c2s_test_to_start(self):
+        # Wait until the 'Now Testing your upload speed' banner is displayed.
+        upload_speed_element = (
+            browser_client_common.find_element_containing_text(
+                self._driver, 'your upload speed'))
+        return browser_client_common.wait_until_element_is_visible(
+            self._driver, upload_speed_element,
+            browser_client_common.NDT_TEST_NEGOTIATION_TIMEOUT)
 
-    Args:
-        errors: An errors list.
-        metric: The value of the metric that is to be evaluated.
-        metric_name: A string representing the name of the metric to validate.
+    def _wait_for_s2c_test_to_start(self):
+        # Wait until the 'Now Testing your download speed' banner is displayed.
+        download_speed_element = (
+            browser_client_common.find_element_containing_text(
+                self._driver, 'your download speed'))
+        return browser_client_common.wait_until_element_is_visible(
+            self._driver, download_speed_element,
+            browser_client_common.NDT_TEST_RUN_TIMEOUT)
 
-    Returns:
-        True if the validation was successful.
-    """
+    def _wait_for_results_page_to_appear(self):
+        results_element = self._driver.find_element_by_id('results')
+        return browser_client_common.wait_until_element_is_visible(
+            self._driver, results_element,
+            browser_client_common.NDT_TEST_RUN_TIMEOUT)
 
-    try:
-        float(metric)
-    except ValueError:
-        errors.append(results.TestError('illegal value shown for %s: %s' % (
-            metric_name, metric)))
-        return False
-    return True
+    def _parse_results_page(self):
+        """Populates NdtResult with metrics from page, checks values are valid.
 
+        Populates the NdtResult instance with metrics from the NDT test page.
+        Checks that the values for upload (c2s) throughput, download (s2c)
+        throughput, and latency within the NdtResult instance dict are valid.
+        """
+        c2s_throughput = self._driver.find_element_by_id('upload-speed').text
+        c2s_throughput_units = self._driver.find_element_by_id(
+            'upload-speed-units').text
 
-def _validate_metric(errors, metric, metric_name):
-    """Checks whether a given metric is a valid numeric value.
+        self._result.c2s_result.throughput = self._parse_throughput(
+            c2s_throughput, c2s_throughput_units, 'c2s throughput')
 
-    For a given metric, checks that it is a valid numeric value. If not, an
-    error is added to the list contained in the NdtResult instance attribute.
+        s2c_throughput = self._driver.find_element_by_id('download-speed').text
 
-    Args:
-        errors: An errors list.
-        metric: The value of the metric that is to be evaluated.
-        metric_name: A string representing the name of the metric to validate.
+        s2c_throughput_units = self._driver.find_element_by_id(
+            'download-speed-units').text
+        self._result.s2c_result.throughput = self._parse_throughput(
+            s2c_throughput, s2c_throughput_units, 's2c throughput')
 
-    Returns:
-        A float if the metric was validated, otherwise, returns None.
-    """
-    if _convert_metric_to_float(errors, metric, metric_name):
-        return float(metric)
-    return None
+        latency = self._driver.find_element_by_id('latency').text
+        self._result.latency = self._validate_metric(latency, 'latency')
+
+    def _parse_throughput(self, throughput, throughput_units,
+                          throughput_metric_name):
+        """Converts metric into a valid numeric value in Mb/s .
+
+        For a given metric, checks that it is a valid numeric value. If not, an
+        error is added to the list contained in the NdtResult instance
+        attribute. If it is, it is converted into Mb/s where necessary.
+
+        Args:
+            throughput: The throughput value that is to be evaluated.
+            throughput_units: The units for the throughput value that is to be
+            evaluated (one of kb/s, Mb/s, Gb/s).
+            throughput_metric_name: A string representing the name of the
+                throughput metric to validate.
+
+        Returns:
+            float representing the converted metric, None if an illegal value
+                is given.
+        """
+        if self._convert_metric_to_float(throughput, throughput_metric_name):
+            throughput = float(throughput)
+            if throughput_units == 'kb/s':
+                converted_throughput = throughput / 1000
+                return converted_throughput
+            elif throughput_units == 'Gb/s':
+                converted_throughput = throughput * 1000
+                return converted_throughput
+            elif throughput_units == 'Mb/s':
+                return throughput
+            else:
+                self._add_test_error('Invalid throughput unit specified: %s' %
+                                     throughput_units)
+        return None
+
+    def _convert_metric_to_float(self, metric, metric_name):
+        """Converts a given metric to a float, otherwise, adds an error object.
+
+        If a given metric can be converted to a float, it is converted.
+        Otherwise, a TestError object is added to errors.
+
+        Args:
+            metric: The value of the metric that is to be evaluated.
+            metric_name: A string representing the name of the metric to
+                validate.
+
+        Returns:
+            True if the validation was successful.
+        """
+        try:
+            float(metric)
+        except ValueError:
+            self._add_test_error('illegal value shown for %s: %s' %
+                                 (metric_name, metric))
+            return False
+        return True
+
+    def _validate_metric(self, metric, metric_name):
+        """Checks whether a given metric is a valid numeric value.
+
+        For a given metric, checks that it is a valid numeric value. If not, an
+        error is added to the list contained in the NdtResult instance
+        attribute.
+
+        Args:
+            metric: The value of the metric that is to be evaluated.
+            metric_name: A string representing the name of the metric to
+                validate.
+
+        Returns:
+            A float if the metric was validated, otherwise, returns None.
+        """
+        if self._convert_metric_to_float(metric, metric_name):
+            return float(metric)
+        return None
+
+    def _add_test_error(self, error_message):
+        self._result.errors.append(results.TestError(error_message))
+        logger.error(error_message)
