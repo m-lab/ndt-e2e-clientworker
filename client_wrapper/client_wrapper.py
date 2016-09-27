@@ -39,7 +39,8 @@ def main(args):
             replay_server_manager.start()
             logger.info('replay server replaying %s on port %d',
                         args.client_path, replay_server_manager.port)
-            url = 'http://localhost:%d/banjo' % replay_server_manager.port
+            url = 'http://localhost:%d/search?q=internet+speed+test' % \
+                replay_server_manager.port
             logger.info('starting tests against %s', url)
             driver = banjo_driver.BanjoDriver(args.browser, url)
             _run_test_iterations(driver, args.iterations, args.output)
@@ -123,7 +124,9 @@ if __name__ == '__main__':
                               'files (not implemented), or a client binary '
                               '(not implemented)'))
     parser.add_argument('--server', help='FQDN of NDT server to test against')
-    parser.add_argument('--output', help='Directory in which to write output')
+    parser.add_argument('--output',
+                        help='Directory in which to write output',
+                        required=True)
     parser.add_argument('-v',
                         '--verbose',
                         action='store_true',
