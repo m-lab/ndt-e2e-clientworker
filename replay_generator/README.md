@@ -98,3 +98,16 @@ http://www.example.com/foo/ndt:
 The output file `example.com-replay.yaml` can then be used as the
 `--client_path` parameter to `client_wrapper` to replay the HTTP traffic
 locally.
+
+### OneBox Example
+To capture traffic for the Google OneBox client, follow the same instructions as
+above, but when launching Firefox use this target URL instead:
+```
+http://www.google.com/search?q=internet+speed+test&ie=utf-8&oe=utf-8
+```
+
+NOTE: Google Search generally forces HTTPS. However, the simple HTTP proxy
+provided by replay_generator.py only supports HTTP. When loading the above URL
+into Firefox (through the proxy), it for some reason works unencrypted. Getting
+this replay generation to work in Chrome has so far been unsuccessful, but it
+may be unnecessary as long as it continues to work with Firefox.
