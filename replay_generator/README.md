@@ -106,7 +106,7 @@ above, but when launching Firefox use this target URL instead:
 http://www.google.com/search?q=internet+speed+test&ie=utf-8&oe=utf-8
 ```
 
-NOTE: Google Search generally forces HTTPS. However, the simply HTTP proxy
+NOTE: Google Search generally forces HTTPS. However, the simple HTTP proxy
 provided by replay_generator.py only supports HTTP. When loading the above URL
 into Firefox (through the proxy), it for some reason works unencrypted. Getting
 this replay generation to work in Chrome has so far been unsuccessful, but it
