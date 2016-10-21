@@ -91,20 +91,16 @@ class ReplayHTTPServer(BaseHTTPServer.HTTPServer):
             ndt_server_fqdn: Target NDT server to use in rewritten mlab-ns
                 responses.
         """
-        mlabns_response_data = json.dumps({'city': 'Test_TT',
-                                           'url':
-                                           'http://%s:7123' % ndt_server_fqdn,
-                                           'ip': ['1.2.3.4'],
-                                           'fqdn': ndt_server_fqdn,
-                                           'site': 'xyz99',
-                                           'country': 'US'})
-        paths = ['/ndt', '/ndt_ssl']
-        for path in paths:
-            if path in self._replays:
+        for path in self._replays:
+            if path.startswith('/ndt'):
                 original_response = self._replays[path]
+                data = json.loads(original_response.data)
+                for i in range(len(data)):
+                    data[i]['fqdn'] = ndt_server_fqdn
+                rewritten_data = json.dumps(data)
                 self._replays[path] = http_response.HttpResponse(
                     original_response.response_code, original_response.headers,
-                    mlabns_response_data)
+                    rewritten_data)
 
     def _rewrite_localhost_ips(self):
         for path, original_response in self._replays.iteritems():

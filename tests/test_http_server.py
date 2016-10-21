@@ -57,8 +57,8 @@ class ReplayHTTPServerTest(unittest.TestCase):
 
     def test_server_rewrites_mlabns_responses(self):
         """Server should rewrite server FQDN in mlab-ns responses."""
-        stored_response = http_response.HttpResponse(200, {},
-                                                     'garbage to rewrite')
+        stored_response = http_response.HttpResponse(
+            200, {}, '[{"fqdn": "garbage to rewrite"}]')
         with contextlib.closing(http_server.create_replay_server_manager({
                 '/ndt_ssl': stored_response
         }, 'mlab1.xyz0t.ndt.mock-lab.org')) as server_manager:
@@ -68,7 +68,7 @@ class ReplayHTTPServerTest(unittest.TestCase):
                                        server_manager.port)
             self.assertEqual(200, response.getcode())
             self.assertEqual('mlab1.xyz0t.ndt.mock-lab.org',
-                             json.loads(response.read())['fqdn'])
+                             json.loads(response.read())[0]['fqdn'])
 
     def test_server_manager_shuts_down_server_on_close(self):
         stored_response = http_response.HttpResponse(200, {}, 'dummy response')
