@@ -71,7 +71,7 @@ would be saved as:
 
 ## Example
 
-This example assumes you've cloned this repository and installed all requirements using ```pip install -i requirements.txt```
+This example assumes you've cloned this repository and installed all requirements using ```pip install -r requirements.txt```
 
 To capture traffic for an NDT client at http://www.example.com/foo/ndt:
 
@@ -94,6 +94,8 @@ To capture traffic for an NDT client at http://www.example.com/foo/ndt:
     firefox -private http://www.example.com/foo/ndt
     ```
   A Firefox window should open and should load the test URL.
+
+  **Note:** depending on your version of Firefox, you may need to use the flag ```--private-window``` instead of ```-private``` in the above command.
 
 1. Run the NDT client in the Firefox browser window for a single test until the test is complete.
 1. When the test has completed, return to the first terminal window running the replay generator, and type ```Ctrl+C``` to stop capturing traffic and save output.
