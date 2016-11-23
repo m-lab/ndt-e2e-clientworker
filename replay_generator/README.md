@@ -93,7 +93,7 @@ To capture traffic for an NDT client at http://www.example.com/foo/ndt:
     ```bash
     firefox -private http://www.example.com/foo/ndt
     ```
-  A FireFox window should open and should load the test URL.
+  A Firefox window should open and should load the test URL.
 
 1. Run the NDT client in the Firefox browser window for a single test until the test is complete.
 1. When the test has completed, return to the first terminal window running the replay generator, and type ```Ctrl+C``` to stop capturing traffic and save output.
