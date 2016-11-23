@@ -70,30 +70,33 @@ would be saved as:
       ```
 
 ## Example
-To capture traffic for an NDT client at
-http://www.example.com/foo/ndt:
+
+This example assumes you've cloned this repository and installed all requirements using ```pip install -i requirements.txt```
+
+To capture traffic for an NDT client at http://www.example.com/foo/ndt:
 
 1. Configure Firefox to use a manually set HTTP proxy at address 127.0.0.1 on
    port 8888.
-1. Set Firefox to skip proxy for the following domains:
-  * `localhost`
-  * `127.0.0.1`
-  * `measurement-lab.org` (we don't want to proxy traffic to an M-Lab NDT
-    server).
-1. Start the replay generator:
+
+   * Open the Firefox GUI and go to Edit > Preferences > Advanced > Network
+   * Under **Connection**, click the _Settings_ button, select _Manual proxy configuration_, enter _127.0.0.1_ for **HTTP Proxy** and _8888_ for **Port**, and in the box labeled **No Proxy for** add _localhost, 127.0.0.1, measurement-lab.org_
+   * Click **Ok** and then close the Firefox GUI
+
+1. Open a terminal window and start the replay generator:
     ```bash
     python replay_generator/replay_generator.py \
       --port 8888 \
       --output example.com-replay.yaml
     ```
 
-1. Run Firefox in private mode against the target client URL:
+1. Then open a second terminal window and run Firefox in private mode against the target client URL:
     ```bash
     firefox -private http://www.example.com/foo/ndt
     ```
+  A FireFox window should open and should load the test URL.
 
-1. Run the NDT client for a single test until the test is complete.
-1. Hit Ctrl+C to stop capturing traffic and save output.
+1. Run the NDT client in the Firefox browser window for a single test until the test is complete.
+1. When the test has completed, return to the first terminal window running the replay generator, and type ```Ctrl+C``` to stop capturing traffic and save output.
 
 The output file `example.com-replay.yaml` can then be used as the
 `--client_path` parameter to `client_wrapper` to replay the HTTP traffic
