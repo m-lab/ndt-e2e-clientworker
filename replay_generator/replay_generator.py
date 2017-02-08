@@ -120,6 +120,13 @@ def _process_responses(original):
     # Build a set of all domains from the URLs that appear in the responses
     # dictionary.
     domains = set()
+
+    # There are some domains that we want to replace that are not necessarily
+    # URLs that will show up as a key in dict 'original' (likely because the
+    # request was over HTTPS). In such cases, manually add lines below for
+    # additional domains which should be replaced with '127.0.0.1'.
+    domains.add('apis.google.com')
+
     for url in original:
         domains.add(urlparse.urlparse(url).netloc)
 
