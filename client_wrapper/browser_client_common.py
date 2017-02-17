@@ -100,7 +100,7 @@ def get_browser_version(driver):
         BrowserVersionMissing: Browser version could not be determined.
     """
     # Most drivers put the version information in the 'version' field.
-    if 'version' in driver.capabilities:
+    if 'version' in driver.capabilities and driver.capabilities['version']:
         return driver.capabilities['version']
     # Drivers like Edge's WebDriver lack a 'version' field and instead have a
     # 'browserVersion' field.
