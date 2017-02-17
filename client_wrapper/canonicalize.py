@@ -52,8 +52,12 @@ def os_to_shortname(os, os_version):
         return names.WINDOWS_SERVER_2012_R2
     elif os == 'Ubuntu' and os_version == '14.04':
         return names.UBUNTU_14
+    elif os == 'Ubuntu' and os_version == '16.04':
+        return names.UBUNTU_16
     elif os == 'OSX' and os_version.startswith('10.11'):
         return names.OSX_10_11
+    elif os == 'OSX' and os_version.startswith('10.12'):
+        return names.OSX_10_12
     else:
         raise UnsupportedPlatformError('Unsupported OS platform: %s v%s' %
                                        (os, os_version))
