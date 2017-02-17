@@ -40,12 +40,12 @@ class OsMetadataTest(unittest.TestCase):
         self.addCleanup(distribution_patcher.stop)
         distribution_patcher.start()
 
-    def test_detects_osx_el_capitan(self):
+    def test_detects_osx_el_sierra(self):
         platform.system.return_value = 'Darwin'
-        platform.mac_ver.return_value = ('10.11.3', ('', '', ''), 'i386')
+        platform.mac_ver.return_value = ('10.12.3', ('', '', ''), 'i386')
         os_name, os_version = os_metadata.get_os_metadata()
         self.assertEqual('OSX', os_name)
-        self.assertEqual('10.11.3', os_version)
+        self.assertEqual('10.12.3', os_version)
 
     def test_detects_ubuntu_14_04(self):
         platform.system.return_value = 'Linux'
