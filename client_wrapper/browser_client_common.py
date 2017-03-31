@@ -21,6 +21,7 @@ from selenium.webdriver.support import ui
 
 import names
 import results
+import time
 
 # Number of seconds to wait for any particular event to occur in the browser UI
 # (e.g. page load, element becomes clickable).
@@ -146,8 +147,22 @@ def wait_until_element_is_visible(driver, element, timeout):
         True if the element became visible within the timeout.
     """
     try:
-        ui.WebDriverWait(
-            driver, timeout).until(expected_conditions.visibility_of(element))
+        # Apparently checks for an element's visibility are broken in Safari 10.
+        # For addtional (though not much) information, see:
+        # http://stackoverflow.com/questions/40635371/selenium-3-0-1-with-safaridriver-failing-on-waitforelementvisible
+        # https://groups.google.com/forum/#!msg/selenium-users/xEGcK92rzVg/IboybWUPAAAJ
+        #
+        # To get around this for now, check the browser name and version (WebKit
+        # version , really), and if they seem to indicate Safari 10, then do a
+        # dumb wait of 10 seconds to give the page time to render and the
+        # elements to become visible, etc.
+        if (driver.capabilities['browserName'] == 'safari' and
+                driver.capabilities['version'] == '12602.4.8'):
+            time.sleep(10)
+        else:
+            ui.WebDriverWait(
+                driver,
+                timeout).until(expected_conditions.visibility_of(element))
     except exceptions.TimeoutException:
         return False
     return True
