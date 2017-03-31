@@ -1,4 +1,4 @@
 python-dateutil
 pytz==2016.2
 pyyaml
-selenium==3.0.2
+selenium==3.3.1
