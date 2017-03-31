@@ -81,8 +81,10 @@ def create_browser(browser):
     else:
         raise ValueError('Invalid browser specified: %s' % browser)
 
-    # currently ignored by the Chrome driver
-    driver.set_page_load_timeout(10)
+    # currently ignored by the Chrome driver, and causes Firefox 49 on Win10
+    # with Selenium 3.3.1 to crash, so leave this commented until such a time as
+    # we can reliably set page load timeouts for all browsers.
+    #driver.set_page_load_timeout(10)
 
     yield driver
     driver.quit()
