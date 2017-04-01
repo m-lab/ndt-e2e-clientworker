@@ -156,11 +156,11 @@ def wait_until_element_is_visible(driver, element, timeout):
         #
         # To get around this for now, check the browser name and version (WebKit
         # version , really), and if they seem to indicate Safari 10, then do a
-        # dumb wait of 10 seconds to give the page time to render and the
+        # dumb wait of 'timeout' seconds to give the page time to render and the
         # elements to become visible, etc.
         if (driver.capabilities['browserName'] == 'safari' and
                 driver.capabilities['version'] == '12602.4.8'):
-            time.sleep(10)
+            time.sleep(timeout)
         else:
             ui.WebDriverWait(
                 driver,
