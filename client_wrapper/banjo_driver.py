@@ -25,6 +25,7 @@ from selenium.webdriver.common import by
 import browser_client_common
 import names
 import results
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -146,9 +147,24 @@ class _BanjoUiFlowWrapper(object):
         wait = ui.WebDriverWait(self._driver,
                                 browser_client_common.UI_WAIT_TIMEOUT)
         try:
-            start_button = wait.until(
-                expected_conditions.element_to_be_clickable((
-                    by.By.ID, 'lrfactory-internetspeed__test_button')))
+            # Apparently checks for an element's visibility are broken in Safari 10.
+            # For addtional (though not much) information, see:
+            # http://stackoverflow.com/questions/40635371/selenium-3-0-1-with-safaridriver-failing-on-waitforelementvisible
+            # https://groups.google.com/forum/#!msg/selenium-users/xEGcK92rzVg/IboybWUPAAAJ
+            #
+            # To get around this for now, check the browser name and version (WebKit
+            # version , really), and if they seem to indicate Safari 10, then do a
+            # dumb wait of 10 seconds to give the page time to render and the
+            # elements to become visible, etc.
+            if (self._driver.capabilities['browserName'] == 'safari' and
+                    self._driver.capabilities['version'] == '12602.4.8'):
+                time.sleep(10)
+                start_button = self._driver.find_element_by_id(
+                    'lrfactory-internetspeed__test_button')
+            else:
+                start_button = wait.until(
+                    expected_conditions.element_to_be_clickable((
+                        by.By.ID, 'lrfactory-internetspeed__test_button')))
 
         except exceptions.TimeoutException:
             self._add_test_error(ERROR_FAILED_TO_LOCATE_RUN_TEST_BUTTON)
