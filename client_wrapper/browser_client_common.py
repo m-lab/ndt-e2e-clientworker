@@ -45,6 +45,12 @@ ERROR_S2C_NEVER_STARTED = 'Timed out waiting for s2c test to begin.'
 ERROR_C2S_NEVER_ENDED = 'Timed out waiting for c2s test to end.'
 ERROR_S2C_NEVER_ENDED = 'Timed out waiting for s2c test to end.'
 
+# The version number in driver.capabilities for Safari is more of a WebKit
+# version number than a Safari version number. We need to identify Safari 10
+# because its native WebDriver implementation is rather immature and incomplete
+# and doesn't support everything, and we need to make some changes if we're
+# working with this version of Safari.
+SAFARI10_VERSION = '12602.4.8'
 
 class Error(Exception):
     pass
@@ -159,7 +165,7 @@ def wait_until_element_is_visible(driver, element, timeout):
         # dumb wait of 'timeout' seconds to give the page time to render and the
         # elements to become visible, etc.
         if (driver.capabilities['browserName'] == 'safari' and
-                driver.capabilities['version'] == '12602.4.8'):
+                driver.capabilities['version'] == SAFARI10_VERSION):
             time.sleep(timeout)
         else:
             ui.WebDriverWait(

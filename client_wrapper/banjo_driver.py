@@ -157,7 +157,7 @@ class _BanjoUiFlowWrapper(object):
             # dumb wait of 10 seconds to give the page time to render and the
             # elements to become visible, etc.
             if (self._driver.capabilities['browserName'] == 'safari' and
-                    self._driver.capabilities['version'] == '12602.4.8'):
+                    self._driver.capabilities['version'] == SAFARI10_VERSION):
                 time.sleep(10)
                 start_button = self._driver.find_element_by_id(
                     'lrfactory-internetspeed__test_button')
