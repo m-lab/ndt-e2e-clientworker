@@ -25,7 +25,7 @@ import time
 
 # Number of seconds to wait for any particular event to occur in the browser UI
 # (e.g. page load, element becomes clickable).
-UI_WAIT_TIMEOUT = 2
+UI_WAIT_TIMEOUT = 10
 
 # Number of seconds to wait for the test negotiation phase to complete and the
 # test to begin.
