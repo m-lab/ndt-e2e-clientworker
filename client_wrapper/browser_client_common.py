@@ -21,10 +21,11 @@ from selenium.webdriver.support import ui
 
 import names
 import results
+import time
 
 # Number of seconds to wait for any particular event to occur in the browser UI
 # (e.g. page load, element becomes clickable).
-UI_WAIT_TIMEOUT = 2
+UI_WAIT_TIMEOUT = 10
 
 # Number of seconds to wait for the test negotiation phase to complete and the
 # test to begin.
@@ -43,6 +44,13 @@ ERROR_C2S_NEVER_STARTED = 'Timed out waiting for c2s test to begin.'
 ERROR_S2C_NEVER_STARTED = 'Timed out waiting for s2c test to begin.'
 ERROR_C2S_NEVER_ENDED = 'Timed out waiting for c2s test to end.'
 ERROR_S2C_NEVER_ENDED = 'Timed out waiting for s2c test to end.'
+
+# The version number in driver.capabilities for Safari is more of a WebKit
+# version number than a Safari version number. We need to identify Safari 10
+# because its native WebDriver implementation is rather immature and incomplete
+# and doesn't support everything, and we need to make some changes if we're
+# working with this version of Safari.
+SAFARI10_VERSION = '12602.4.8'
 
 
 class Error(Exception):
@@ -80,8 +88,10 @@ def create_browser(browser):
     else:
         raise ValueError('Invalid browser specified: %s' % browser)
 
-    # currently ignored by the Chrome driver
-    driver.set_page_load_timeout(10)
+    # currently ignored by the Chrome driver, and causes Firefox 49 on Win10
+    # with Selenium 3.3.1 to crash, so leave this commented until such a time as
+    # we can reliably set page load timeouts for all browsers.
+    #driver.set_page_load_timeout(10)
 
     yield driver
     driver.quit()
@@ -100,7 +110,7 @@ def get_browser_version(driver):
         BrowserVersionMissing: Browser version could not be determined.
     """
     # Most drivers put the version information in the 'version' field.
-    if 'version' in driver.capabilities:
+    if 'version' in driver.capabilities and driver.capabilities['version']:
         return driver.capabilities['version']
     # Drivers like Edge's WebDriver lack a 'version' field and instead have a
     # 'browserVersion' field.
@@ -146,8 +156,22 @@ def wait_until_element_is_visible(driver, element, timeout):
         True if the element became visible within the timeout.
     """
     try:
-        ui.WebDriverWait(
-            driver, timeout).until(expected_conditions.visibility_of(element))
+        # Apparently checks for an element's visibility are broken in Safari 10.
+        # For addtional (though not much) information, see:
+        # http://stackoverflow.com/questions/40635371/selenium-3-0-1-with-safaridriver-failing-on-waitforelementvisible
+        # https://groups.google.com/forum/#!msg/selenium-users/xEGcK92rzVg/IboybWUPAAAJ
+        #
+        # To get around this for now, check the browser name and version (WebKit
+        # version , really), and if they seem to indicate Safari 10, then do a
+        # dumb wait of 'timeout' seconds to give the page time to render and the
+        # elements to become visible, etc.
+        if (driver.capabilities['browserName'] == 'safari' and
+                driver.capabilities['version'] == SAFARI10_VERSION):
+            time.sleep(timeout)
+        else:
+            ui.WebDriverWait(
+                driver,
+                timeout).until(expected_conditions.visibility_of(element))
     except exceptions.TimeoutException:
         return False
     return True
