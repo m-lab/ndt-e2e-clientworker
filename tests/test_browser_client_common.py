@@ -168,9 +168,10 @@ class WaitUntilElementIsVisibleTest(unittest.TestCase):
         mock_wait = mock.Mock()
         mock_webdriver_wait.return_value = mock_wait
 
+        mock_driver = mock.Mock()
+        mock_driver.capabilities = {'browserName': 'LOL', 'version': 'LOL'}
         # In reality, these would be objects, but we mock with strings for
         # simplicity.
-        mock_driver = 'mock driver'
         mock_element = 'mock DOM element'
         mock_condition = 'mock expected condition'
 
@@ -193,9 +194,10 @@ class WaitUntilElementIsVisibleTest(unittest.TestCase):
         mock_webdriver_wait.side_effect = exceptions.TimeoutException(
             'mock timeout exception')
 
-        # In reality, these would be objects, but we mock with strings for
+        mock_driver = mock.Mock()
+        mock_driver.capabilities = {'browserName': 'LOL', 'version': 'LOL'}
+        # In reality, this would be an object, but we mock with a string for
         # simplicity.
-        mock_driver = 'mock driver'
         mock_element = 'mock DOM element'
 
         # Verify that the function returns False when the wait times out.
