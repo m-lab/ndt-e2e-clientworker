@@ -52,6 +52,7 @@ ERROR_S2C_NEVER_ENDED = 'Timed out waiting for s2c test to end.'
 # working with this version of Safari.
 SAFARI10_VERSION = '12602.4.8'
 
+
 class Error(Exception):
     pass
 
